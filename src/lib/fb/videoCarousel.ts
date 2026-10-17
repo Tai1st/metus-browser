@@ -208,7 +208,7 @@ function buildObjectStorySpec(p: CreateCarouselParams): Record<string, unknown> 
   }
 
   if (mode === 'carousel2') {
-    const FREE_PLAN_IMAGE = 'https://iili.io/3wyRiiX.md.jpg';
+    const FREE_PLAN_IMAGE = 'https://i.ibb.co/HLkTLjYV/image.png';
     const child_attachments = p.cards.map((card, i) => {
       const { link, call_to_action } = ctaFor(card, pageId);
       return {
