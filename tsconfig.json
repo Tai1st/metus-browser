@@ -8,8 +8,15 @@
       ],
       "@/assets/*": [
         "./assets/*"
+      ],
+      "@metus/http": [
+        "./modules/metus-http"
       ]
-    }
+    },
+    "types": [
+      "jest",
+      "node"
+    ]
   },
   "include": [
     "**/*.ts",

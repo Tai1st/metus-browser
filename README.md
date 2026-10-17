@@ -1,56 +1,120 @@
-# Welcome to your Expo app 👋
+# Metus Browser (app)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Ứng dụng Android + iOS (Expo / React Native) chạy các công cụ Facebook của
+metus-few bằng **HTTP client native**, không cần extension, không dính CORS.
 
-## Get started
+Request đi thẳng từ máy (OkHttp trên Android, URLSession trên iOS) nên:
 
-1. Install dependencies
+- Không bị CORS của trình duyệt — đặt được `Origin`, `Referer`, `Sec-Fetch-*`, `User-Agent` tùy ý.
+- Cookie đăng nhập Facebook nằm trong cookie jar **riêng từng tài khoản**, lưu mã hóa (Android Keystore / iOS Keychain). Cookie **không** lộ ra JavaScript trừ khi người dùng chủ động bấm "Sao chép cookie".
+- JavaScript gọi qua API `Metus.http.request()` / `Metus.accounts.*`.
 
-   ```bash
-   npm install
-   ```
+## Yêu cầu
 
-2. Start the app
+- Node 20+, và một trong hai: Android Studio / Android SDK (build Android) hoặc EAS + tài khoản Apple (build iOS).
+- Android SDK cần: platform `android-36`, build-tools `36.0.0`, NDK `27.1.12297006` (giống React Native 0.86).
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Cài đặt
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Tạo `.env` (đã có sẵn mẫu):
 
-### Other setup steps
+```
+EXPO_PUBLIC_BACKEND_API_URL=https://api.metus.vn/api
+EXPO_PUBLIC_APP_URL=https://metus.vn
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Chạy dev (development build — BẮT BUỘC, không dùng Expo Go)
 
-## Learn more
+Module native `modules/metus-http` không có trong Expo Go, nên phải tạo dev build:
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+# Android (máy Windows/Linux/Mac đều được)
+npx expo run:android
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+# iOS (chỉ trên macOS, hoặc dùng EAS)
+npx expo run:ios
+```
 
-## Join the community
+## Build APK / app store
 
-Join our community of developers creating universal apps.
+```bash
+# Build cloud bằng EAS (không cần Xcode/Android Studio cục bộ)
+npx eas-cli@latest build --platform android --profile preview   # APK cài tay
+npx eas-cli@latest build --platform ios --profile preview       # cần Apple Developer
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+> Lưu ý phát hành: app tự động hóa tài khoản Facebook + xử lý cookie bên thứ ba
+> dễ bị Apple App Store / Google Play từ chối. Thực tế nên phát hành qua APK
+> (Android) và TestFlight / Ad-hoc / Enterprise (iOS).
+
+## Kiểm thử
+
+```bash
+npm test            # JS SDK: serialize, client, apiClient (Jest)
+npm run typecheck   # tsc --noEmit
+# Engine native (Kotlin, OkHttp + MockWebServer):
+cd android && ./gradlew :metus-http:testDebugUnitTest
+```
+
+## Kiến trúc
+
+```
+modules/metus-http/            # Native HTTP engine (local Expo module)
+  android/.../core/            # Kotlin: HttpEngine, HttpPolicy, AccountCookieJar, RequestSpec
+  android/.../android/         # AccountStore (Keystore), AndroidFileAccess, WebViewCookies
+  android/.../MetusHttpModule.kt
+  android/src/test/            # Unit test JVM (MockWebServer)
+  ios/                         # Swift: MetusHttpEngine (URLSession), MetusCookieJar, Keychain store
+  src/                         # SDK TypeScript: client, serialize, types, base64
+  __tests__/                   # Jest
+
+src/
+  app/                         # Màn hình (expo-router)
+    login, index, accounts, fb-login, browser, api-client
+    tools/auto-join-fb-group, tools/group-extractor-by-uid
+  lib/
+    config, storage, device, api, auth
+    fb/compat.ts               # exFetch() + instance (axios-like) chạy trên native HTTP
+    fb/session, fb/accounts, fb/AutoJoinFbGroup, fb/GroupExtractorByUid
+  components/ui.tsx, components/tool.tsx
+```
+
+## JavaScript SDK
+
+```ts
+import { Metus } from '@metus/http';
+
+// Cấu hình chính sách (allowlist host, chặn IP nội bộ…)
+Metus.http.configure({ allowedHosts: ['facebook.com', 'metus.vn'], blockPrivateNetworks: true });
+
+// Request như Postman, có cookie của tài khoản FB đang chọn
+const res = await Metus.http.request({
+  url: 'https://graph.facebook.com/me',
+  method: 'GET',
+  credentials: 'include',   // dùng cookie jar của tài khoản
+});
+console.log(res.status, res.headers, res.data);
+
+// Tài khoản
+await Metus.accounts.importFromWebView();   // lưu phiên đăng nhập trong WebView
+const list = await Metus.accounts.list();   // [{ id, hasSession, cookieCount }]
+```
+
+## Bảo mật
+
+- Allowlist host + chặn SSRF (localhost / IP private / CGNAT / link-local), kiểm tra cả sau khi phân giải DNS.
+- TLS luôn được kiểm tra — không có tùy chọn bỏ qua chứng chỉ.
+- Giới hạn số request đồng thời, kích thước request/response/download.
+- Cookie của tài khoản không đi vào log, không trả về JS tự động.
+- WebView (đăng nhập / trình duyệt) **không** được cấp bridge vào native HTTP.
+
+## Còn lại (đợt sau)
+
+- Port tiếp các tool còn lại của metus-few (page/profile, upload reel/story…).
+- Màn `metus://api-client` đã có sẵn trong app (tab API Client).
+- iOS: kiểm chứng proxy (cần iOS 17+) và upload nền cho video lớn.
+```

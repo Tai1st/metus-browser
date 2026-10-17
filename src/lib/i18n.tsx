@@ -1,0 +1,666 @@
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+
+import * as storage from './storage';
+
+/**
+ * i18n tối giản cho Metus Browser. Người dùng chọn ngôn ngữ ở lần mở app đầu
+ * tiên (bottom sheet), lựa chọn được lưu vào storage. `t('key')` tra cứu chuỗi
+ * theo ngôn ngữ hiện tại; thiếu key thì fallback sang en rồi trả về chính key.
+ */
+export type Lang = 'vi' | 'en' | 'zh' | 'bn' | 'hi' | 'fil' | 'ar' | 'fr';
+
+export const LANGUAGES: { code: Lang; label: string; native: string; flag: string }[] = [
+  { code: 'vi', label: 'Vietnamese', native: 'Tiếng Việt', flag: '🇻🇳' },
+  { code: 'en', label: 'English', native: 'English', flag: '🇬🇧' },
+  { code: 'zh', label: 'Chinese', native: '中文', flag: '🇨🇳' },
+  { code: 'bn', label: 'Bengali', native: 'বাংলা', flag: '🇧🇩' },
+  { code: 'hi', label: 'Hindi', native: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'fil', label: 'Filipino', native: 'Filipino', flag: '🇵🇭' },
+  { code: 'ar', label: 'Arabic', native: 'العربية', flag: '🇦🇪' },
+  { code: 'fr', label: 'French', native: 'Français', flag: '🇫🇷' },
+];
+
+type Dict = Record<string, string>;
+
+const vi: Dict = {
+  // Chung
+  'common.cancel': 'Hủy',
+  'common.continue': 'Tiếp tục',
+  'common.save': 'Lưu',
+  'common.copy': 'Sao chép',
+  'common.delete': 'Xóa',
+  'common.close': 'Đóng',
+  'common.version': 'phiên bản',
+  'common.copied': 'Đã sao chép',
+  'common.copyFail': 'Không sao chép được',
+  'common.copyFailMsg': 'Vui lòng sao chép thủ công.',
+
+  // Điều hướng (thanh dưới)
+  'nav.connect': 'Kết nối',
+  'nav.recharge': 'Nạp tiền',
+  'nav.tools': 'Công cụ',
+  'nav.plan': 'Gói dịch vụ',
+  'nav.account': 'Tài khoản',
+
+  // Tiêu đề màn (stack)
+  'stack.fbLogin': 'Đăng nhập Facebook',
+  'stack.apiClient': 'API Client',
+  'stack.browser': 'Trình duyệt',
+  'stack.comingSoon': 'Sắp có',
+  'stack.autoJoin': 'Tự động tham gia nhóm',
+  'stack.autoPost': 'Đăng bài lên nhóm',
+  'stack.groupExtractor': 'Lấy nhóm theo UID',
+  'stack.videoCarousel': 'Đăng Video 2 Ô',
+
+  // Bottom sheet chọn ngôn ngữ
+  'language.title': 'Chọn ngôn ngữ',
+  'language.subtitle': 'Thay đổi ngôn ngữ hiển thị trong ứng dụng',
+  'language.hint': 'Bạn có thể đổi lại trong phần Tài khoản.',
+  'language.continue': 'Tiếp tục',
+
+  // Bottom sheet chọn giao diện
+  'theme.title': 'Chọn giao diện',
+  'theme.subtitle': 'Thay đổi giao diện hiển thị của ứng dụng',
+  'theme.optLight': 'Giao diện sáng',
+  'theme.optLightDesc': 'Sử dụng giao diện sáng',
+  'theme.optDark': 'Giao diện tối',
+  'theme.optDarkDesc': 'Sử dụng giao diện tối',
+  'theme.optSystem': 'Tự động',
+  'theme.optSystemDesc': 'Tự động theo cài đặt của hệ thống',
+
+  // Đăng nhập
+  'login.tagline': 'Tools for Creators',
+  'login.email': 'Email',
+  'login.password': 'Mật khẩu',
+  'login.showPassword': 'Hiện mật khẩu',
+  'login.hidePassword': 'Ẩn mật khẩu',
+  'login.submit': 'Đăng nhập',
+  'login.needBoth': 'Nhập email và mật khẩu',
+  'login.footer': 'Dùng tài khoản metus.vn của bạn',
+
+  // Tài khoản
+  'account.defaultName': 'Metus User',
+  'account.balance': 'Số dư',
+  'account.recharge': 'Nạp tiền',
+  'account.currentPlan': 'Gói đang sử dụng',
+  'account.noPlan': 'Chưa có gói',
+  'account.daysLeft': 'Còn {n} ngày',
+  'account.expires': 'Hết hạn: {date}',
+  'account.upgradeHint': 'Nâng cấp để mở khóa toàn bộ công cụ',
+  'account.theme': 'Giao diện',
+  'theme.light': 'Sáng',
+  'theme.dark': 'Tối',
+  'theme.system': 'Tự động',
+  'account.language': 'Ngôn ngữ',
+  'account.txHistory': 'Lịch sử giao dịch',
+  'account.devices': 'Thiết bị đã đăng nhập',
+  'account.appSettings': 'Cài đặt ứng dụng',
+  'account.support': 'Hỗ trợ',
+  'account.terms': 'Điều khoản sử dụng',
+  'account.logout': 'Đăng xuất',
+  'account.logoutConfirm': 'Bạn có chắc muốn đăng xuất khỏi Metus?',
+
+  // Kết nối (màn Facebook)
+  'connect.bannerTitle': 'Kết nối Facebook',
+  'connect.bannerDesc': 'Quản lý tài khoản, trang, nhóm để đăng và an toàn.',
+  'connect.connectNow': 'Kết nối ngay',
+  'connect.savedAccounts': 'Tài khoản đã lưu ({n})',
+  'connect.noAccounts': 'Chưa có tài khoản',
+  'connect.noAccountsHint': 'Đăng nhập hoặc dán cookie để thêm',
+  'connect.inUse': 'Đang dùng',
+  'connect.expired': 'Hết phiên',
+  'connect.useThis': 'Dùng tài khoản này',
+  'connect.openFb': 'Mở Facebook',
+  'connect.copyCookie': 'Sao chép cookie',
+  'connect.copyCookieTitle': 'Sao chép cookie?',
+  'connect.copyCookieMsg': 'Cookie cho phép đăng nhập vào tài khoản này. Chỉ dán vào nơi bạn tin tưởng.',
+  'connect.cookieCopied': 'Đã sao chép cookie',
+  'connect.removeTitle': 'Xóa tài khoản?',
+  'connect.removeMsg': '{name} ({id}) sẽ bị xóa khỏi máy.',
+  'connect.importByCookie': 'Nhập bằng cookie',
+  'connect.cookieDesc': 'Dán chuỗi cookie Facebook (c_user=...; xs=...). Cookie được mã hóa trong máy, không gửi lên server Metus.',
+  'connect.importCookieBtn': 'Nhập cookie',
+
+  // Nạp tiền
+  'recharge.balance': 'Số dư hiện tại',
+  'recharge.codeBadge': 'Mã: {code}',
+  'recharge.paymentMethod': 'Phương thức thanh toán',
+  'recharge.method.bank': 'Ngân hàng',
+  'recharge.method.card': 'Thẻ cào',
+  'recharge.method.usdt': 'USDT',
+  'recharge.method.paypal': 'PayPal',
+  'recharge.bank.loading': 'Đang tải thông tin ngân hàng…',
+  'recharge.bank.err': 'Không lấy được thông tin ngân hàng.',
+  'recharge.bank.way1Title': 'Cách 1: Chuyển khoản bằng mã QR',
+  'recharge.bank.way1Desc': 'Mở App ngân hàng quét mã QR và nhập số tiền cần chuyển.',
+  'recharge.bank.way2Title': 'Cách 2: Chuyển khoản thủ công',
+  'recharge.bank.way2Desc': 'Nhập đúng thông tin bên dưới để chuyển tiền vào tài khoản.',
+  'recharge.bank.owner': 'Chủ tài khoản',
+  'recharge.bank.number': 'Số tài khoản',
+  'recharge.bank.content': 'Nội dung chuyển tiền',
+  'recharge.bank.bankLabel': 'Ngân hàng',
+  'recharge.bank.bankName': 'Á Châu (ACB)',
+  'recharge.bank.note1': 'Ghi đúng nội dung chuyển tiền để được cộng tự động.',
+  'recharge.bank.note2': 'Tài khoản được cộng sau khi giao dịch thành công.',
+  'recharge.card.loading': 'Đang tải bảng thẻ…',
+  'recharge.card.err': 'Không lấy được bảng thẻ.',
+  'recharge.card.maintenance': 'Nhà mạng đang bảo trì',
+  'recharge.card.type': 'Loại thẻ',
+  'recharge.card.denom': 'Mệnh giá',
+  'recharge.card.receive': 'Nhận {amount}',
+  'recharge.card.seri': 'Seri',
+  'recharge.card.seriPlaceholder': 'Nhập mã seri',
+  'recharge.card.pin': 'Mã thẻ',
+  'recharge.card.pinPlaceholder': 'Nhập mã thẻ cào',
+  'recharge.card.submit': 'NẠP THẺ',
+  'recharge.card.pickBoth': 'Chọn loại thẻ và mệnh giá',
+  'recharge.card.enterSeri': 'Mã seri không được để trống',
+  'recharge.card.enterPin': 'Mã thẻ không được để trống',
+  'recharge.card.resultTitle': 'Nạp thẻ',
+  'recharge.card.sent': 'Đã gửi yêu cầu nạp thẻ.',
+  'recharge.card.failTitle': 'Nạp thẻ thất bại',
+  'recharge.card.note1': 'Tỉ giá quy đổi là 1 xu = 1 VND.',
+  'recharge.card.note2': 'Chiết khấu thẻ không cố định, tùy nhà mạng và loại thẻ.',
+  'recharge.card.note3': 'Ghi đúng thông tin thì tài khoản được cộng tự động khi thành công.',
+  'recharge.card.note4': 'Nạp sai mã thẻ hoặc sai nhà mạng không hỗ trợ hoàn thẻ.',
+  'recharge.usdt.title': 'Nạp tiền vào tài khoản của bạn',
+  'recharge.usdt.tron': 'Mạng: Tron (TRC20)',
+  'recharge.usdt.bep20': 'Mạng: BNB Smart Chain (BEP20)',
+  'recharge.usdt.support': 'Tạo yêu cầu hỗ trợ',
+  'recharge.usdt.note1': 'Tỷ giá quy đổi: 1 USDT = 1$.',
+  'recharge.usdt.note2': 'Số tiền tối thiểu: 5$.',
+  'recharge.usdt.note3': 'Chấp nhận USDT qua 2 mạng TRC20 và BEP20. Sau khi chuyển, mở ticket báo số tiền đã chuyển để được cộng.',
+  'recharge.paypal.title': 'Thanh toán qua PayPal',
+  'recharge.paypal.emailLabel': 'Gửi thanh toán tới email PayPal này',
+  'recharge.paypal.sendProof': 'Gửi ảnh chụp thanh toán cho admin',
+  'recharge.paypal.note1': 'Tối thiểu: $10 + 10% (bù phí giao dịch PayPal).',
+  'recharge.paypal.note2': 'Sau khi thanh toán, gửi ảnh chụp cho admin qua Telegram (nút trên).',
+  'recharge.paypal.note3': 'Admin sẽ cộng số dư vào tài khoản của bạn.',
+  'recharge.noteTitle': 'Lưu ý!',
+
+  // Gói dịch vụ
+  'plan.tab.app': 'Gói App',
+  'plan.tab.ext': 'Gói Extension',
+  'plan.tab.license': 'License',
+  'plan.popular': 'Phổ biến',
+  'plan.buy': 'Mua ngay',
+  'plan.buyTitle': 'Mua gói {name}',
+  'plan.footer': 'Dùng số dư trong ví để mua gói. Nếu chưa đủ, hãy nạp thêm ở mục Nạp tiền.',
+  'plan.days': '{count} ngày',
+  'plan.unlimited': 'Vĩnh viễn',
+  'plan.basicLabel': 'Truy cập tất cả các tính năng…',
+  'plan.testLabel': 'Gói dùng thử',
+  'plan.loading': 'Đang tải gói…',
+  'plan.loadErr': 'Không tải được danh sách gói.',
+  'plan.empty': 'Chưa có gói dịch vụ.',
+  'plan.buySuccess': 'Mua gói thành công',
+  'plan.buySuccessMsg': 'Thời gian sử dụng đã được cộng vào tài khoản.',
+  'plan.buyFailTitle': 'Mua gói thất bại',
+  'plan.pendingTitle': 'Cần thanh toán thêm',
+  'plan.pendingMsg': 'Số dư chưa đủ. Vào mục Nạp tiền để hoàn tất thanh toán.',
+  'plan.goRecharge': 'Nạp tiền',
+  'plan.confirmTitle': 'Mua gói {name}?',
+  'plan.feature.multiplePages': 'Đăng bài lên nhiều Fanpage',
+  'plan.feature.schedulePost': 'Hẹn giờ đăng bài trang',
+  'plan.feature.coverImage': 'Ảnh bìa tùy chỉnh',
+  'plan.feature.carousel': 'Hỗ trợ định dạng Carousel',
+  'plan.feature.cardButtons': 'Thêm nút tương tác trong bài viết',
+  'plan.feature.support': 'Hỗ trợ kỹ thuật 1-1',
+  'plan.feature.maxDevices': 'Đăng nhập tối đa {count} thiết bị',
+  'plan.feature.maxDevicesUnlimited': 'Đăng nhập không giới hạn thiết bị',
+  'plan.feature.unlimitedBrowsers': 'Không giới hạn trình duyệt',
+
+  // Công cụ (màn + lưới)
+  'tools.search': 'Tìm công cụ...',
+  'tools.notFound': 'Không tìm thấy công cụ phù hợp.',
+  'tools.soon': 'Sắp có',
+  'tag.all': 'Tất cả',
+  'tag.facebook': 'Facebook',
+  'tag.video': 'Video',
+  'tag.util': 'Tiện ích',
+  'category.auto': 'Tự động hóa',
+  'category.content': 'Tạo nội dung',
+  'category.analyze': 'Phân tích',
+  'category.manage': 'Quản lý',
+
+  // Màn chi tiết (Sắp có)
+  'comingSoon.fallbackName': 'Công cụ',
+  'comingSoon.fallbackDesc': 'Công cụ Facebook cho Metus.',
+  'comingSoon.features': 'Tính năng nổi bật',
+  'comingSoon.feat1': 'Chạy trực tiếp trên điện thoại, không cần PC',
+  'comingSoon.feat2': 'Dùng cookie tài khoản đang chọn, an toàn',
+  'comingSoon.feat3': 'Hỗ trợ nhiều tài khoản Facebook',
+  'comingSoon.feat4': 'Giao diện đơn giản, dễ sử dụng',
+  'comingSoon.open': 'Mở công cụ',
+  'comingSoon.inDev': 'Đang phát triển',
+  'comingSoon.inDevDesc': 'Logic của công cụ này sẽ được bổ sung trong các bản cập nhật tới.',
+  'comingSoon.other': 'Xem công cụ khác',
+
+  // Đăng nhập Facebook (WebView)
+  'fbLogin.updated': '✓ Đã cập nhật phiên tài khoản.',
+  'fbLogin.hint': 'Đăng nhập xong (kể cả bước xác minh), bấm nút bên dưới nếu app chưa tự lưu.',
+  'fbLogin.save': 'Lưu tài khoản',
+  'fbLogin.update': 'Cập nhật phiên',
+
+  // Màn công cụ (auto-join / auto-post / group-extractor)
+  'tool.uidListLabel': 'Danh sách UID nhóm (mỗi dòng 1 UID)',
+  'tool.thread': 'Luồng',
+  'tool.delaySec': 'Giãn cách (giây)',
+  'tool.limit': 'Giới hạn',
+  'tool.limitGroups': 'Giới hạn nhóm',
+  'tool.stop': 'Dừng',
+  'tool.start': 'Bắt đầu',
+  'tool.startPost': 'Bắt đầu đăng',
+  'tool.groupsN': 'Nhóm ({n})',
+  'tool.groupsDone': 'Nhóm ({done}/{total} xong)',
+  'tool.log': 'Nhật ký',
+  'tool.st.sent': 'Đã gửi',
+  'tool.st.posted': 'Đã đăng',
+  'tool.st.error': 'Lỗi',
+  'tool.st.waiting': 'Chờ',
+  'tool.postContent': 'Nội dung bài viết',
+  'tool.postContentPh': 'Nhập nội dung muốn đăng...',
+  'tool.groupListLabel': 'Danh sách nhóm (UID hoặc link, mỗi dòng 1 nhóm)',
+  'tool.uidAccount': 'UID tài khoản',
+  'tool.getGroups': 'Lấy danh sách nhóm',
+  'tool.copy': 'Sao chép',
+  'tool.copiedN': 'Đã sao chép {n} nhóm',
+  'tool.doneLog': 'Hoàn tất.',
+  'tool.noGroupsToJoin': 'Không có nhóm nào cần tham gia.',
+  'tool.noContent': 'Chưa nhập nội dung bài viết.',
+  'tool.noValidGroups': 'Không có nhóm hợp lệ (UID hoặc link nhóm).',
+  'tool.noToken': 'Không lấy được collection token (UID sai hoặc nhóm bị ẩn).',
+  'tool.logJoined': '{name}: đã gửi yêu cầu',
+  'tool.logNotJoined': '{name}: không join được',
+  'tool.logInfoErr': 'Lỗi lấy thông tin {id}: {err}',
+  'tool.logJoinErr': 'Join {id} lỗi: {err}',
+  'tool.logPosted': '{id}: đã đăng',
+  'tool.logPostErr': '{id}: lỗi — {err}',
+
+  // Cổng công cụ (ToolGate)
+  'gate.noAccount': 'Chưa có tài khoản Facebook',
+  'gate.noAccountDesc': 'Thêm hoặc chọn một tài khoản để dùng công cụ này.',
+  'gate.manage': 'Quản lý tài khoản',
+  'gate.loadingSession': 'Đang lấy phiên của {name}…',
+  'gate.expired': 'Phiên hết hạn',
+  'gate.noDtsg': 'Không lấy được fb_dtsg. Hãy đăng nhập lại tài khoản.',
+  'gate.retry': 'Thử lại',
+  'gate.reLogin': 'Đăng nhập lại',
+
+  // Trình duyệt
+  'browser.reload': 'Tải lại',
+
+  // API Client
+  'api.request': 'Request',
+  'api.queryParams': 'Query params (key=value, mỗi dòng 1 cặp)',
+  'api.headers': 'Headers (key: value, mỗi dòng 1 cặp)',
+  'api.body': 'Body',
+  'api.bodyPlaceholder': 'nội dung',
+  'api.multipartPlaceholder': 'field=value\nfile=@file (đính kèm file đã chọn)',
+  'api.pickFile': 'Chọn file',
+  'api.removeFile': 'Bỏ',
+  'api.auth': 'Xác thực',
+  'api.sendCookie': 'Gửi cookie tài khoản FB',
+  'api.noAccount': 'Chưa chọn tài khoản',
+  'api.send': 'Gửi',
+  'api.noHeader': '(không có header)',
+  'api.history': 'Lịch sử',
+  'api.clear': 'Xóa',
+  'api.error': 'lỗi',
+  'api.dataErr': 'Lỗi dữ liệu: {err}',
+  'api.needAccount': 'Chưa chọn tài khoản Facebook để gửi cookie.',
+};
+
+const en: Dict = {
+  'common.cancel': 'Cancel',
+  'common.continue': 'Continue',
+  'common.save': 'Save',
+  'common.copy': 'Copy',
+  'common.delete': 'Delete',
+  'common.close': 'Close',
+  'common.version': 'version',
+  'common.copied': 'Copied',
+  'common.copyFail': 'Copy failed',
+  'common.copyFailMsg': 'Please copy manually.',
+
+  'nav.connect': 'Connect',
+  'nav.recharge': 'Recharge',
+  'nav.tools': 'Tools',
+  'nav.plan': 'Plans',
+  'nav.account': 'Account',
+
+  'stack.fbLogin': 'Facebook sign-in',
+  'stack.apiClient': 'API Client',
+  'stack.browser': 'Browser',
+  'stack.comingSoon': 'Coming soon',
+  'stack.autoJoin': 'Auto join groups',
+  'stack.autoPost': 'Post to groups',
+  'stack.groupExtractor': 'Groups by UID',
+  'stack.videoCarousel': 'Post 2-card video',
+
+  'language.title': 'Choose language',
+  'language.subtitle': 'Change the display language of the app',
+  'language.hint': 'You can change this later in Account.',
+  'language.continue': 'Continue',
+
+  'theme.title': 'Choose theme',
+  'theme.subtitle': 'Change the display theme of the app',
+  'theme.optLight': 'Light theme',
+  'theme.optLightDesc': 'Use the light theme',
+  'theme.optDark': 'Dark theme',
+  'theme.optDarkDesc': 'Use the dark theme',
+  'theme.optSystem': 'Automatic',
+  'theme.optSystemDesc': 'Follow the system setting',
+
+  'login.tagline': 'Tools for Creators',
+  'login.email': 'Email',
+  'login.password': 'Password',
+  'login.showPassword': 'Show password',
+  'login.hidePassword': 'Hide password',
+  'login.submit': 'Sign in',
+  'login.needBoth': 'Enter email and password',
+  'login.footer': 'Use your metus.vn account',
+
+  'account.defaultName': 'Metus User',
+  'account.balance': 'Balance',
+  'account.recharge': 'Recharge',
+  'account.currentPlan': 'Current plan',
+  'account.noPlan': 'No plan',
+  'account.daysLeft': '{n} days left',
+  'account.expires': 'Expires: {date}',
+  'account.upgradeHint': 'Upgrade to unlock all tools',
+  'account.theme': 'Interface',
+  'theme.light': 'Light',
+  'theme.dark': 'Dark',
+  'theme.system': 'Auto',
+  'account.language': 'Language',
+  'account.txHistory': 'Transaction history',
+  'account.devices': 'Logged-in devices',
+  'account.appSettings': 'App settings',
+  'account.support': 'Support',
+  'account.terms': 'Terms of use',
+  'account.logout': 'Sign out',
+  'account.logoutConfirm': 'Are you sure you want to sign out of Metus?',
+
+  'connect.bannerTitle': 'Connect Facebook',
+  'connect.bannerDesc': 'Manage accounts, pages and groups to post safely.',
+  'connect.connectNow': 'Connect now',
+  'connect.savedAccounts': 'Saved accounts ({n})',
+  'connect.noAccounts': 'No accounts yet',
+  'connect.noAccountsHint': 'Sign in or paste a cookie to add one',
+  'connect.inUse': 'In use',
+  'connect.expired': 'Session expired',
+  'connect.useThis': 'Use this account',
+  'connect.openFb': 'Open Facebook',
+  'connect.copyCookie': 'Copy cookie',
+  'connect.copyCookieTitle': 'Copy cookie?',
+  'connect.copyCookieMsg': 'The cookie can sign in to this account. Only paste it somewhere you trust.',
+  'connect.cookieCopied': 'Cookie copied',
+  'connect.removeTitle': 'Delete account?',
+  'connect.removeMsg': '{name} ({id}) will be removed from this device.',
+  'connect.importByCookie': 'Import by cookie',
+  'connect.cookieDesc': 'Paste a Facebook cookie string (c_user=...; xs=...). The cookie is encrypted on device, not sent to Metus servers.',
+  'connect.importCookieBtn': 'Import cookie',
+
+  'recharge.balance': 'Current balance',
+  'recharge.codeBadge': 'Code: {code}',
+  'recharge.paymentMethod': 'Payment method',
+  'recharge.method.bank': 'Bank',
+  'recharge.method.card': 'Mobile Card',
+  'recharge.method.usdt': 'USDT',
+  'recharge.method.paypal': 'PayPal',
+  'recharge.bank.loading': 'Loading bank info…',
+  'recharge.bank.err': 'Could not load bank info.',
+  'recharge.bank.way1Title': 'Method 1: Transfer via QR Code',
+  'recharge.bank.way1Desc': 'Open your banking app, scan the QR code and enter the amount.',
+  'recharge.bank.way2Title': 'Method 2: Manual Transfer',
+  'recharge.bank.way2Desc': 'Enter the correct information below to transfer money.',
+  'recharge.bank.owner': 'Account Holder',
+  'recharge.bank.number': 'Account Number',
+  'recharge.bank.content': 'Transfer Content',
+  'recharge.bank.bankLabel': 'Bank',
+  'recharge.bank.bankName': 'ACB (Asia Commercial Bank)',
+  'recharge.bank.note1': 'Enter the correct transfer content to be credited automatically.',
+  'recharge.bank.note2': 'Your account is credited after a successful transaction.',
+  'recharge.card.loading': 'Loading card rates…',
+  'recharge.card.err': 'Could not load card rates.',
+  'recharge.card.maintenance': 'Provider is under maintenance',
+  'recharge.card.type': 'Card Type',
+  'recharge.card.denom': 'Denomination',
+  'recharge.card.receive': 'Receive {amount}',
+  'recharge.card.seri': 'Serial Number',
+  'recharge.card.seriPlaceholder': 'Enter serial number',
+  'recharge.card.pin': 'Card Code',
+  'recharge.card.pinPlaceholder': 'Enter card code',
+  'recharge.card.submit': 'RECHARGE',
+  'recharge.card.pickBoth': 'Choose a card type and denomination',
+  'recharge.card.enterSeri': 'Serial number is required',
+  'recharge.card.enterPin': 'Card code is required',
+  'recharge.card.resultTitle': 'Mobile Card',
+  'recharge.card.sent': 'Card recharge request sent.',
+  'recharge.card.failTitle': 'Card recharge failed',
+  'recharge.card.note1': 'Exchange rate: 1 coin = 1 VND.',
+  'recharge.card.note2': 'Discount rate varies depending on provider and card type.',
+  'recharge.card.note3': 'Please enter correct information. Your account will be credited automatically after a successful transaction.',
+  'recharge.card.note4': 'Incorrect card code or provider will not be refunded.',
+  'recharge.usdt.title': 'Deposit money into your account',
+  'recharge.usdt.tron': 'Network: Tron (TRC20)',
+  'recharge.usdt.bep20': 'Network: BNB Smart Chain (BEP20)',
+  'recharge.usdt.support': 'Create Support Request',
+  'recharge.usdt.note1': 'Exchange rate: 1 USDT = 1$.',
+  'recharge.usdt.note2': 'Minimum payment: 5$.',
+  'recharge.usdt.note3': 'We now accept direct USDT transfers through 2 networks: TRC20 and BEP20. After a successful transfer, please open a ticket and let us know the amount you transferred so we can add the funds to your account.',
+  'recharge.paypal.title': 'PayPal Payment',
+  'recharge.paypal.emailLabel': 'Send payment to this PayPal email',
+  'recharge.paypal.sendProof': 'Send payment screenshot to admin',
+  'recharge.paypal.note1': 'Minimum payment: $10 + 10% (to cover PayPal transaction fees).',
+  'recharge.paypal.note2': 'After paying, send a screenshot of the payment to admin via Telegram (button above).',
+  'recharge.paypal.note3': 'I will add the balance to your account, and you simply need to use that balance to upgrade your package.',
+  'recharge.noteTitle': 'Note!',
+
+  'plan.tab.app': 'App plans',
+  'plan.tab.ext': 'Extension plans',
+  'plan.tab.license': 'License',
+  'plan.popular': 'Popular',
+  'plan.buy': 'Buy now',
+  'plan.buyTitle': 'Buy {name}',
+  'plan.footer': 'Use your wallet balance to buy a plan. If it is not enough, top up in Recharge.',
+  'plan.days': '{count} days',
+  'plan.unlimited': 'Lifetime',
+  'plan.basicLabel': 'Access all features…',
+  'plan.testLabel': 'Trial plan',
+  'plan.loading': 'Loading plans…',
+  'plan.loadErr': 'Could not load plans.',
+  'plan.empty': 'No plans available.',
+  'plan.buySuccess': 'Package purchased successfully',
+  'plan.buySuccessMsg': 'The usage duration has been added to your account.',
+  'plan.buyFailTitle': 'Purchase failed',
+  'plan.pendingTitle': 'Additional payment needed',
+  'plan.pendingMsg': 'Insufficient balance. Go to Recharge to complete the payment.',
+  'plan.goRecharge': 'Recharge',
+  'plan.confirmTitle': 'Buy {name}?',
+  'plan.feature.multiplePages': 'Post to multiple fanpages',
+  'plan.feature.schedulePost': 'Schedule page posts',
+  'plan.feature.coverImage': 'Custom cover image',
+  'plan.feature.carousel': 'Support Carousel format',
+  'plan.feature.cardButtons': 'Add interactive buttons to posts',
+  'plan.feature.support': '1-on-1 technical support',
+  'plan.feature.maxDevices': 'Sign in on up to {count} device(s)',
+  'plan.feature.maxDevicesUnlimited': 'Unlimited device sign-in',
+  'plan.feature.unlimitedBrowsers': 'Unlimited browsers',
+
+  'tools.search': 'Search tools by keyword...',
+  'tools.notFound': 'No matching tools found.',
+  'tools.soon': 'Coming soon',
+  'tag.all': 'All',
+  'tag.facebook': 'Facebook',
+  'tag.video': 'Video',
+  'tag.util': 'Utilities',
+  'category.auto': 'Automation',
+  'category.content': 'Content',
+  'category.analyze': 'Analytics',
+  'category.manage': 'Management',
+
+  'comingSoon.fallbackName': 'Tool',
+  'comingSoon.fallbackDesc': 'Facebook tool for Metus.',
+  'comingSoon.features': 'Key features',
+  'comingSoon.feat1': 'Runs directly on your phone, no PC needed',
+  'comingSoon.feat2': 'Uses the selected account cookie, securely',
+  'comingSoon.feat3': 'Supports multiple Facebook accounts',
+  'comingSoon.feat4': 'Simple, easy-to-use interface',
+  'comingSoon.open': 'Open tool',
+  'comingSoon.inDev': 'In development',
+  'comingSoon.inDevDesc': "This tool's logic will be added in upcoming updates.",
+  'comingSoon.other': 'See other tools',
+
+  'fbLogin.updated': '✓ Account session updated.',
+  'fbLogin.hint': "After signing in (including verification), tap the button below if the app hasn't saved automatically.",
+  'fbLogin.save': 'Save account',
+  'fbLogin.update': 'Update session',
+
+  'tool.uidListLabel': 'Group UID list (one UID per line)',
+  'tool.thread': 'Threads',
+  'tool.delaySec': 'Delay (sec)',
+  'tool.limit': 'Limit',
+  'tool.limitGroups': 'Group limit',
+  'tool.stop': 'Stop',
+  'tool.start': 'Start',
+  'tool.startPost': 'Start posting',
+  'tool.groupsN': 'Groups ({n})',
+  'tool.groupsDone': 'Groups ({done}/{total} done)',
+  'tool.log': 'Log',
+  'tool.st.sent': 'Sent',
+  'tool.st.posted': 'Posted',
+  'tool.st.error': 'Error',
+  'tool.st.waiting': 'Waiting',
+  'tool.postContent': 'Post content',
+  'tool.postContentPh': 'Enter the content to post...',
+  'tool.groupListLabel': 'Group list (UID or link, one per line)',
+  'tool.uidAccount': 'Account UID',
+  'tool.getGroups': 'Get group list',
+  'tool.copy': 'Copy',
+  'tool.copiedN': 'Copied {n} groups',
+  'tool.doneLog': 'Done.',
+  'tool.noGroupsToJoin': 'No groups to join.',
+  'tool.noContent': 'Please enter the post content.',
+  'tool.noValidGroups': 'No valid groups (UID or group link).',
+  'tool.noToken': 'Could not get collection token (wrong UID or hidden groups).',
+  'tool.logJoined': '{name}: request sent',
+  'tool.logNotJoined': '{name}: could not join',
+  'tool.logInfoErr': 'Error fetching info {id}: {err}',
+  'tool.logJoinErr': 'Join {id} failed: {err}',
+  'tool.logPosted': '{id}: posted',
+  'tool.logPostErr': '{id}: error — {err}',
+
+  'gate.noAccount': 'No Facebook account',
+  'gate.noAccountDesc': 'Add or select an account to use this tool.',
+  'gate.manage': 'Manage accounts',
+  'gate.loadingSession': 'Loading session for {name}…',
+  'gate.expired': 'Session expired',
+  'gate.noDtsg': 'Could not get fb_dtsg. Please sign in again.',
+  'gate.retry': 'Retry',
+  'gate.reLogin': 'Sign in again',
+
+  'browser.reload': 'Reload',
+
+  'api.request': 'Request',
+  'api.queryParams': 'Query params (key=value, one pair per line)',
+  'api.headers': 'Headers (key: value, one pair per line)',
+  'api.body': 'Body',
+  'api.bodyPlaceholder': 'content',
+  'api.multipartPlaceholder': 'field=value\nfile=@file (attaches the chosen file)',
+  'api.pickFile': 'Choose file',
+  'api.removeFile': 'Remove',
+  'api.auth': 'Authentication',
+  'api.sendCookie': 'Send FB account cookie',
+  'api.noAccount': 'No account selected',
+  'api.send': 'Send',
+  'api.noHeader': '(no headers)',
+  'api.history': 'History',
+  'api.clear': 'Clear',
+  'api.error': 'error',
+  'api.dataErr': 'Data error: {err}',
+  'api.needAccount': 'No Facebook account selected to send cookies.',
+};
+
+// Chỉ vi/en có bản dịch đầy đủ; các ngôn ngữ khác fallback sang en trong `t`.
+const DICTS: Partial<Record<Lang, Dict>> = { vi, en };
+
+export type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
+
+interface I18nState {
+  lang: Lang;
+  /** Người dùng đã chọn ngôn ngữ lần đầu hay chưa (để gate màn hình chọn). */
+  chosen: boolean;
+  setLang: (l: Lang) => void;
+  t: TranslateFn;
+}
+
+const Ctx = createContext<I18nState | null>(null);
+
+function applyVars(s: string, vars?: Record<string, string | number>): string {
+  if (!vars) return s;
+  return s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? String(vars[k]) : `{${k}}`));
+}
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const saved = storage.get<Lang>(storage.StorageKey.LANGUAGE);
+  const [lang, setLangState] = useState<Lang>(saved ?? 'vi');
+  const [chosen, setChosen] = useState<boolean>(saved != null);
+
+  const setLang = useCallback((l: Lang) => {
+    setLangState(l);
+    setChosen(true);
+    storage.set(storage.StorageKey.LANGUAGE, l);
+  }, []);
+
+  const t = useCallback<TranslateFn>(
+    (key, vars) => {
+      const table = DICTS[lang] ?? en;
+      return applyVars(table[key] ?? en[key] ?? key, vars);
+    },
+    [lang],
+  );
+
+  const value = useMemo(() => ({ lang, chosen, setLang, t }), [lang, chosen, setLang, t]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function useI18n(): I18nState {
+  const c = useContext(Ctx);
+  if (!c) throw new Error('useI18n phải nằm trong I18nProvider');
+  return c;
+}
+
+/** Hook tiện dụng chỉ lấy hàm dịch. */
+export function useT(): TranslateFn {
+  return useI18n().t;
+}
+
+/**
+ * Phương thức nạp tiền mặc định (focus) theo ngôn ngữ — giống `defaultPaymentMethod`
+ * trong config locales của metus-few: tiếng Việt (VND) ưu tiên chuyển khoản ngân
+ * hàng, các ngôn ngữ khác (USD) ưu tiên USDT.
+ */
+export function defaultRechargeMethod(lang: Lang): 'bank' | 'usdt' {
+  return lang === 'vi' ? 'bank' : 'usdt';
+}
+
+/** 1 USD = 26.000 VND (giống exchangeRate của metus-few). */
+export const USD_RATE = 26000;
+
+/**
+ * Tiền tệ theo ngôn ngữ: tiếng Việt hiển thị VNĐ, các ngôn ngữ khác quy đổi sang
+ * USD theo tỷ lệ 1/26000. `format(vnd)` nhận số tiền gốc (VND) và trả chuỗi đã
+ * định dạng theo tiền tệ hiện tại.
+ */
+export function useCurrency() {
+  const { lang } = useI18n();
+  const isVnd = lang === 'vi';
+  const format = (vnd: number) => {
+    if (isVnd) return `${Math.round(vnd).toLocaleString('vi-VN')}đ`;
+    const [int, dec] = (vnd / USD_RATE).toFixed(2).split('.');
+    return `$${int.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${dec}`;
+  };
+  return { isVnd, currency: isVnd ? 'VND' : 'USD', rate: USD_RATE, format };
+}

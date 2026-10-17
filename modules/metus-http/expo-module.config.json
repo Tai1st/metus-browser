@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["MetusHttpModule"]
+  },
+  "android": {
+    "modules": ["com.metus.http.MetusHttpModule"]
+  }
+}

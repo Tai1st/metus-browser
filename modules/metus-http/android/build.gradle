@@ -1,0 +1,32 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.metus.http'
+version = '0.1.0'
+
+android {
+  namespace "com.metus.http"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+  testOptions {
+    unitTests.returnDefaultValues = true
+  }
+}
+
+dependencies {
+  // Cùng phiên bản React Native đang dùng (node_modules/react-native/gradle/libs.versions.toml).
+  implementation "com.squareup.okhttp3:okhttp:4.9.2"
+
+  testImplementation "junit:junit:4.13.2"
+  testImplementation "com.squareup.okhttp3:mockwebserver:4.9.2"
+  testImplementation "com.squareup.okhttp3:okhttp-tls:4.9.2"
+  // org.json thật cho JVM test (android.jar chỉ có stub).
+  testImplementation "org.json:json:20240303"
+}
