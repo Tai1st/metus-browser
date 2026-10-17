@@ -148,7 +148,7 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
 export default function AutoJoinFbGroupScreen() {
   return (
     <Screen>
-      <ToolGate>{(dtsg, fbId) => <Runner dtsg={dtsg} fbId={fbId} />}</ToolGate>
+      <ToolGate require="none">{(dtsg, fbId) => <Runner dtsg={dtsg} fbId={fbId} />}</ToolGate>
     </Screen>
   );
 }

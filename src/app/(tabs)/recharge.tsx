@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, View } from 'react-native';
 
 import { Badge, Body, Button, Card, Field, Label, Row, Screen, Title, radius, useColors } from '@/components/ui';
 import { Api, describeError, type BankInfoSetting, type CardRate, type CardValue, type MetusUser } from '@/lib/api';
 import { defaultRechargeMethod, useCurrency, useI18n, useT, type TranslateFn } from '@/lib/i18n';
+import { showDialog } from '@/components/Dialog';
 
 type Method = 'bank' | 'card' | 'usdt' | 'paypal';
 
@@ -29,9 +30,9 @@ function useCopy() {
   return async (text: string) => {
     try {
       await Clipboard.setStringAsync(text);
-      Alert.alert(t('common.copied'));
+      showDialog(t('common.copied'));
     } catch {
-      Alert.alert(t('common.copyFail'), t('common.copyFailMsg'));
+      showDialog(t('common.copyFail'), t('common.copyFailMsg'));
     }
   };
 }
@@ -155,17 +156,17 @@ function CardPanel({ t }: { t: TranslateFn }) {
   const receive = (v: CardValue) => v.value - (v.value * v.fees) / 100;
 
   const submit = async () => {
-    if (!cardType || !picked) return Alert.alert(t('recharge.card.pickBoth'));
-    if (!seri.trim()) return Alert.alert(t('recharge.card.enterSeri'));
-    if (!pin.trim()) return Alert.alert(t('recharge.card.enterPin'));
+    if (!cardType || !picked) return showDialog(t('recharge.card.pickBoth'));
+    if (!seri.trim()) return showDialog(t('recharge.card.enterSeri'));
+    if (!pin.trim()) return showDialog(t('recharge.card.enterPin'));
     setSubmitting(true);
     try {
       const msg = await Api.rechargePhoneCard({ cardType, cardValue: picked.value, seri: seri.trim(), pin: pin.trim() });
-      Alert.alert(t('recharge.card.resultTitle'), typeof msg === 'string' ? msg : t('recharge.card.sent'));
+      showDialog(t('recharge.card.resultTitle'), typeof msg === 'string' ? msg : t('recharge.card.sent'));
       setSeri('');
       setPin('');
     } catch (e) {
-      Alert.alert(t('recharge.card.failTitle'), describeError(e));
+      showDialog(t('recharge.card.failTitle'), describeError(e));
     } finally {
       setSubmitting(false);
     }

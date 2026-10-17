@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 import { Badge, Body, Button, Card, EmptyState, Label, Row, Screen, useColors } from '@/components/ui';
 import { Api, describeError, type PlanItem } from '@/lib/api';
 import { useCurrency, useI18n } from '@/lib/i18n';
+import { showDialog } from '@/components/Dialog';
 
 function PlanCard({ p, onBuy }: { p: PlanItem; onBuy: (p: PlanItem) => void }) {
   const c = useColors();
@@ -79,7 +80,7 @@ export default function PlanScreen() {
   }, [load]);
 
   const buy = (p: PlanItem) => {
-    Alert.alert(t('plan.confirmTitle', { name: p.name }), undefined, [
+    showDialog(t('plan.confirmTitle', { name: p.name }), undefined, [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('plan.buy'),
@@ -88,16 +89,16 @@ export default function PlanScreen() {
             const res = await Api.buyPlan(p._id);
             const status = res?.status ?? res?.order?.status;
             if (status === 'PENDING') {
-              Alert.alert(t('plan.pendingTitle'), t('plan.pendingMsg'), [
+              showDialog(t('plan.pendingTitle'), t('plan.pendingMsg'), [
                 { text: t('common.cancel'), style: 'cancel' },
                 { text: t('plan.goRecharge'), onPress: () => router.push('/recharge') },
               ]);
             } else {
-              Alert.alert(t('plan.buySuccess'), t('plan.buySuccessMsg'));
+              showDialog(t('plan.buySuccess'), t('plan.buySuccessMsg'));
               load();
             }
           } catch (e) {
-            Alert.alert(t('plan.buyFailTitle'), describeError(e));
+            showDialog(t('plan.buyFailTitle'), describeError(e));
           }
         },
       },

@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Modal, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Logo } from '@/components/Logo';
 import { ResultList, ToolGate } from '@/components/tool';
 import { Badge, Body, Button, Card, Field, Label, Row, Screen, radius, shadow, useColors } from '@/components/ui';
 import { describeError } from '@/lib/api';
@@ -13,11 +14,14 @@ import { useTheme } from '@/lib/theme';
 import { useFbAccounts } from '@/lib/fb/accounts';
 import { useAdsSession } from '@/lib/fb/adsSession';
 import { type AdAccount } from '@/lib/fb/ads';
-import { CTA_ACTIONS, createCarouselPost, uploadAdImage, uploadAdVideo, type CardData } from '@/lib/fb/videoCarousel';
+import { CTA_ACTIONS, createCarouselPost, deleteAdImage, getAdImages, uploadAdImage, uploadAdVideo, type AdImage, type AdPostMode, type CardData } from '@/lib/fb/videoCarousel';
+import { showDialog } from '@/components/Dialog';
+import { needsWatermark } from '@/lib/plan';
+import { ALBUM_LAYOUTS, AlbumLayoutPicker, FakeAlbumEditor, captureAlbum, type AlbumLayout } from '@/components/FakeAlbumEditor';
 
 // Ảnh placeholder ô chọn video (theo ngôn ngữ).
-const UPLOAD_VI = require('../../../assets/images/upload-video-vi.png');
-const UPLOAD_EN = require('../../../assets/images/upload-video-en.png');
+const UPLOAD_VI = require('../../assets/images/upload-video-vi.png');
+const UPLOAD_EN = require('../../assets/images/upload-video-en.png');
 
 type PostRow = { pageId: string; pageName: string; status: 'pending' | 'done' | 'error'; note?: string };
 type HistoryItem = { postId?: string; pageId: string; pageName: string; pagePicture?: string; status: 'done' | 'error'; at: number };
@@ -214,7 +218,74 @@ function PickerModal<T>({ visible, title, onClose, items, keyOf, labelOf, avatar
   );
 }
 
-function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
+/** Modal hiển thị tiến độ đăng bài (giống thiết kế Metus). */
+function PostingModal({ visible, percent, pageLabel, scheduled }: {
+  visible: boolean; percent: number; pageLabel: string; scheduled: boolean;
+}) {
+  const c = useColors();
+  const pct = Math.max(0, Math.min(100, Math.round(percent)));
+  return (
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20, backgroundColor: 'rgba(0,0,0,0.55)' }}>
+        <View style={[{ width: '100%', maxWidth: 420, backgroundColor: c.card, borderRadius: radius.lg, padding: 20, gap: 14 }, shadow(c, 2)]}>
+          {/* Header: logo */}
+          <Row gap={8}>
+            <Logo size={30} />
+            <Text style={{ color: c.text, fontSize: 20, fontWeight: '800' }}>Metus</Text>
+          </Row>
+
+          {/* Minh hoạ: mây upload trong vòng sáng + icon video/ảnh */}
+          <View style={{ alignItems: 'center', justifyContent: 'center', height: 150 }}>
+            <View style={{ position: 'absolute', width: 150, height: 150, borderRadius: 75, backgroundColor: c.accentSoft, opacity: 0.7 }} />
+            <View style={{ position: 'absolute', width: 112, height: 112, borderRadius: 56, borderWidth: 2, borderColor: c.accent, opacity: 0.35 }} />
+            <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="cloud-upload" size={46} color="#fff" />
+            </View>
+            <View style={{ position: 'absolute', left: '14%', top: 26, width: 40, height: 40, borderRadius: 10, backgroundColor: '#3b82f6', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-12deg' }] }}>
+              <Ionicons name="play" size={20} color="#fff" />
+            </View>
+            <View style={{ position: 'absolute', right: '14%', top: 40, width: 40, height: 40, borderRadius: 10, backgroundColor: '#8b5cf6', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '10deg' }] }}>
+              <Ionicons name="image" size={20} color="#fff" />
+            </View>
+          </View>
+
+          {/* Tiêu đề */}
+          <View style={{ alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: c.text }}>
+              Đang <Text style={{ color: c.accent }}>{scheduled ? 'hẹn lịch' : 'đăng bài'}</Text>...
+            </Text>
+            <Text style={{ color: c.muted, fontSize: 13.5, textAlign: 'center' }}>Vui lòng đợi trong giây lát, Metus đang xử lý bài viết của bạn.</Text>
+            {pageLabel ? <Text style={{ color: c.faint, fontSize: 12.5, textAlign: 'center' }} numberOfLines={1}>{pageLabel}</Text> : null}
+          </View>
+
+          {/* Thanh tiến độ */}
+          <Row gap={12}>
+            <View style={{ flex: 1, height: 10, borderRadius: 5, backgroundColor: c.chip, overflow: 'hidden' }}>
+              <View style={{ width: `${pct}%`, height: '100%', borderRadius: 5, backgroundColor: c.accent }} />
+            </View>
+            <Text style={{ color: c.text, fontWeight: '800', fontSize: 15, minWidth: 44, textAlign: 'right' }}>{pct}%</Text>
+          </Row>
+
+          {/* Ghi chú */}
+          <Row gap={10} style={{ backgroundColor: c.input, borderRadius: radius.md, padding: 12, alignItems: 'flex-start' }}>
+            <Ionicons name="flash" size={18} color={c.info} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ color: c.text, fontSize: 13 }}>Quá trình đăng bài có thể mất vài giây tùy thuộc vào kích thước video.</Text>
+              <Text style={{ color: c.muted, fontSize: 12 }}>Vui lòng không đóng ứng dụng.</Text>
+            </View>
+          </Row>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; mode: AdPostMode; watermark: boolean }) {
+  const numCards = mode === 'carousel2' ? 2 : 1;
+  const imageOnly = mode === 'onePicture';
+  const isAlbum = mode === 'fakeAlbum';
+  // Mỗi loại bài giữ lịch sử riêng (2 ô giữ key cũ để không mất lịch sử).
+  const historyKey = mode === 'carousel2' ? storage.StorageKey.FB_POST_HISTORY : `${storage.StorageKey.FB_POST_HISTORY}:${mode}`;
   const c = useColors();
   const { scheme } = useTheme();
   const { lang } = useI18n();
@@ -240,21 +311,43 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
     setScheduleEnabled(v);
     if (v && !scheduleAt) setScheduleAt(new Date(Date.now() + 40 * 60000)); // mặc định +40 phút (FB >=35')
   };
-  const [cards, setCards] = useState<CardData[]>([defaultCard(), defaultCard()]);
+  const [cards, setCards] = useState<CardData[]>(() =>
+    Array.from({ length: numCards }, () => (imageOnly ? { ...defaultCard(), name: 'Hello Metus' } : defaultCard())),
+  );
+  // Ảnh 1 ô: link hiển thị + mô tả dưới link (giống metus-few).
+  const [displayLink, setDisplayLink] = useState('facebook.com');
+  const [displayLinkDescription, setDisplayLinkDescription] = useState('Post was auto generate by metus v2');
+  // Album giả: bố cục + ảnh từng ô + link đích + ẩn bài.
+  const [albumLayout, setAlbumLayout] = useState<AlbumLayout>('RegularImage');
+  const [albumImages, setAlbumImages] = useState<(string | null)[]>([]);
+  const [albumSlot, setAlbumSlot] = useState(0);
+  const [albumWebsite, setAlbumWebsite] = useState('https://metus.vn');
+  const [hidePost, setHidePost] = useState(false);
+  const albumRef = useRef<View>(null);
+  const albumSlots = ALBUM_LAYOUTS[albumLayout].rects.length;
+  const setAlbumAt = (i: number, uri: string | null) =>
+    setAlbumImages((prev) => {
+      const next = [...prev];
+      next[i] = uri;
+      return next;
+    });
   const [uploading, setUploading] = useState<number | null>(null);
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [creating, setCreating] = useState(false);
-  const [history, setHistory] = useState<HistoryItem[]>(() => storage.get<HistoryItem[]>(storage.StorageKey.FB_POST_HISTORY) ?? []);
+  const [postModal, setPostModal] = useState(false);
+  const [postPercent, setPostPercent] = useState(0);
+  const [postPageLabel, setPostPageLabel] = useState('');
+  const [history, setHistory] = useState<HistoryItem[]>(() => storage.get<HistoryItem[]>(historyKey) ?? []);
 
   const addHistory = (item: HistoryItem) =>
     setHistory((prev) => {
       const next = [item, ...prev].slice(0, 100);
-      storage.set(storage.StorageKey.FB_POST_HISTORY, next);
+      storage.set(historyKey, next);
       return next;
     });
   const clearHistory = () => {
     setHistory([]);
-    storage.set(storage.StorageKey.FB_POST_HISTORY, []);
+    storage.set(historyKey, []);
   };
 
   const [fbPicker, setFbPicker] = useState(false);
@@ -271,12 +364,96 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
 
   const patchCard = (i: number, patch: Partial<CardData>) =>
     setCards((prev) => prev.map((cd, idx) => (idx === i ? { ...cd, ...patch } : cd)));
+
+  // Thư viện media (ảnh đã có trên ad account) — bấm để gán cho thẻ đang chọn.
+  const [selectedCard, setSelectedCard] = useState(0);
+  const [library, setLibrary] = useState<AdImage[]>([]);
+  const [libLoading, setLibLoading] = useState(false);
+  const [libUploading, setLibUploading] = useState(false);
+  const [libGrid, setLibGrid] = useState(false); // mặc định cuộn ngang
+
+  const loadLibrary = async () => {
+    if (!adAccount || !token) return;
+    setLibLoading(true);
+    try {
+      setLibrary(await getAdImages(adAccount.id, token));
+    } catch (e) {
+      setError(describeError(e));
+    } finally {
+      setLibLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setLibrary([]);
+    loadLibrary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adAccount?.id, token]);
+
+  const uploadToLibrary = async () => {
+    if (!adAccount) return;
+    const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: true, type: 'image/*' });
+    if (r.canceled || !r.assets.length) return;
+    setLibUploading(true);
+    setError('');
+    try {
+      for (const a of r.assets) {
+        await uploadAdImage(adAccount.id, token, { uri: a.uri, name: a.name, mimeType: a.mimeType ?? undefined });
+      }
+      await loadLibrary();
+    } catch (e) {
+      setError(describeError(e));
+    } finally {
+      setLibUploading(false);
+    }
+  };
+
+  const chooseFromLibrary = (img: AdImage) => {
+    if (isAlbum) {
+      setAlbumAt(albumSlot, img.url);
+      if (albumSlot < albumSlots - 1) setAlbumSlot(albumSlot + 1);
+      return;
+    }
+    patchCard(selectedCard, { picture: img.url, preview: undefined, video_id: undefined });
+  };
+  const libActive = (img: AdImage) => (isAlbum ? albumImages[albumSlot] === img.url : cards[selectedCard]?.picture === img.url);
+
+  // Album giả: chọn ảnh từ máy cho ô i (chọn nhiều → điền lần lượt các ô tiếp theo).
+  const pickAlbumSlot = async (i: number) => {
+    const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: true, type: 'image/*' });
+    if (r.canceled || !r.assets.length) return;
+    setAlbumImages((prev) => {
+      const next = [...prev];
+      r.assets.slice(0, albumSlots - i).forEach((a, k) => (next[i + k] = a.uri));
+      return next;
+    });
+    setAlbumSlot(Math.min(i + r.assets.length, albumSlots - 1));
+  };
+
+  const confirmDeleteImage = (img: AdImage) =>
+    showDialog('Xóa ảnh?', 'Ảnh sẽ bị xóa khỏi thư viện của tài khoản quảng cáo.', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          if (!adAccount) return;
+          try {
+            await deleteAdImage(adAccount.id, token, img.hash);
+            setLibrary((prev) => prev.filter((x) => x.hash !== img.hash));
+          } catch (e) {
+            setError(describeError(e));
+          }
+        },
+      },
+    ]);
   const togglePage = (id: string) =>
     setSelectedPageIds((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
 
   const pickMedia = async (i: number) => {
     if (!adAccount) return;
-    const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: false, type: ['image/*', 'video/*'] });
+    setSelectedCard(i);
+    const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: false, type: imageOnly ? 'image/*' : ['image/*', 'video/*'] });
     if (r.canceled || !r.assets[0]) return;
     const a = r.assets[0];
     const media = { uri: a.uri, name: a.name, mimeType: a.mimeType ?? undefined };
@@ -290,6 +467,7 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
       } else {
         const { url } = await uploadAdImage(adAccount.id, token, media);
         patchCard(i, { picture: url, video_id: undefined });
+        loadLibrary();
       }
     } catch (e) {
       setError(describeError(e));
@@ -302,27 +480,55 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
     const selected = pages.filter((p) => selectedPageIds.includes(p.id));
     if (!adAccount) return setError('Chưa có tài khoản quảng cáo');
     if (selected.length === 0) return setError('Chọn ít nhất 1 Page');
-    if (cards.some((cd) => !cd.picture)) return setError('Mỗi thẻ cần 1 ảnh hoặc video');
+    if (isAlbum) {
+      if (Array.from({ length: albumSlots }, (_, k) => albumImages[k]).some((u) => !u)) return setError(`Bố cục này cần đủ ${albumSlots} ảnh`);
+      if (!/^https?:\/\/\S+$/i.test(albumWebsite.trim())) return setError('Website URL không hợp lệ');
+    } else if (cards.some((cd) => !cd.picture)) return setError(imageOnly ? 'Hãy tải lên 1 ảnh' : numCards > 1 ? 'Mỗi thẻ cần 1 ảnh hoặc video' : 'Hãy tải lên 1 ảnh hoặc video');
     let scheduleUnix: number | undefined;
-    if (scheduleEnabled) {
+    if (scheduleEnabled && !(isAlbum && hidePost)) {
       if (!scheduleAt) return setError('Chọn ngày giờ hẹn lịch');
       if (scheduleAt.getTime() < Date.now() + 35 * 60000) return setError('Hẹn lịch phải cách hiện tại ít nhất 35 phút');
       scheduleUnix = Math.floor(scheduleAt.getTime() / 1000);
     }
     setError('');
     setCreating(true);
+    setPostPercent(0);
+    setPostModal(true);
     setPosts(selected.map((p) => ({ pageId: p.id, pageName: p.name, status: 'pending' })));
-    for (const page of selected) {
+    // Album giả: ghép ảnh (chụp khung xem trước) rồi upload 1 lần, dùng cho mọi trang.
+    let albumImageUrl: string | undefined;
+    if (isAlbum) {
+      setPostPageLabel('Đang ghép & tải ảnh album…');
       try {
-        const postId = await createCarouselPost({ token, adAccountId: adAccount.id, page, dtsg, fbId, primaryText, cards, like: likeEnabled, scheduleUnix });
+        const first = albumImages[0]!;
+        if (albumLayout === 'RegularImage' && /^https?:/i.test(first)) {
+          albumImageUrl = first;
+        } else {
+          const uri = albumLayout === 'RegularImage' ? first : await captureAlbum(albumRef, albumLayout);
+          albumImageUrl = (await uploadAdImage(adAccount.id, token, { uri, name: `album-${Date.now()}.jpg`, mimeType: 'image/jpeg' })).url;
+        }
+      } catch (e) {
+        setCreating(false);
+        setPostModal(false);
+        return setError(describeError(e));
+      }
+    }
+    for (const [idx, page] of selected.entries()) {
+      setPostPageLabel(`Trang ${idx + 1}/${selected.length}: ${page.name}`);
+      const report = (f: number) => setPostPercent(((idx + f) / selected.length) * 100);
+      try {
+        const postId = await createCarouselPost({ mode, displayLink, displayLinkDescription, albumImageUrl, websiteUrl: albumWebsite.trim(), hidePost: isAlbum && hidePost, token, adAccountId: adAccount.id, page, dtsg, fbId, primaryText, cards, watermark, like: likeEnabled, scheduleUnix: isAlbum && hidePost ? undefined : scheduleUnix, onProgress: report });
         setPosts((prev) => prev.map((r) => (r.pageId === page.id ? { ...r, status: 'done', note: postId } : r)));
         addHistory({ postId, pageId: page.id, pageName: page.name, pagePicture: page.picture, status: 'done', at: Date.now() });
       } catch (e) {
         setPosts((prev) => prev.map((r) => (r.pageId === page.id ? { ...r, status: 'error', note: describeError(e) } : r)));
         addHistory({ pageId: page.id, pageName: page.name, pagePicture: page.picture, status: 'error', at: Date.now() });
       }
+      report(1);
     }
     setCreating(false);
+    setPostPercent(100);
+    setTimeout(() => setPostModal(false), 600);
   };
 
   const selectedPages = pages.filter((p) => selectedPageIds.includes(p.id));
@@ -350,17 +556,37 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
 
       {token ? (
         <>
+          {isAlbum ? (
+            <Card>
+              <FakeAlbumEditor
+                layout={albumLayout}
+                images={albumImages}
+                selectedSlot={albumSlot}
+                onSelectSlot={setAlbumSlot}
+                onPickSlot={(i) => { setAlbumSlot(i); pickAlbumSlot(i); }}
+                onRemoveSlot={(i) => setAlbumAt(i, null)}
+                captureViewRef={albumRef}
+                displayLink={displayLink}
+              />
+              <Field label="Website URL (link khi bấm vào ảnh)" value={albumWebsite} onChangeText={setAlbumWebsite} placeholder="https://metus.vn" keyboardType="url" autoCapitalize="none" />
+              <Field label="Link hiển thị" value={displayLink} onChangeText={setDisplayLink} placeholder="facebook.com" autoCapitalize="none" />
+            </Card>
+          ) : null}
+
           {/* Mỗi thẻ: media (có border) + footer CTA + sửa */}
-          {cards.map((card, i) => {
+          {(isAlbum ? [] : cards).map((card, i) => {
             const needUrl = CTA_ACTIONS.find((a) => a.value === card.CTAButton)?.input;
             return (
-              <Card key={i}>
+              <Card key={i} onPress={() => setSelectedCard(i)} style={numCards > 1 && selectedCard === i ? { borderColor: c.accent, borderWidth: 2 } : undefined}>
                 <Row style={{ justifyContent: 'space-between' }}>
-                  <Label>Thẻ {i + 1}</Label>
-                  <Pressable onPress={() => Alert.alert('Thêm video từ Link', 'Dán link TikTok/CapCut sẽ được bổ sung sau. Hãy bấm vào ô bên dưới để chọn ảnh/video từ máy.')} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.accent, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 6 }}>
+                  <Row gap={6}>
+                    <Label>{numCards > 1 ? `Thẻ ${i + 1}` : imageOnly ? 'Ảnh bài đăng' : 'Video / ảnh bài đăng'}</Label>
+                    {numCards > 1 && selectedCard === i ? <Badge text="Đang chọn" tone="accent" /> : null}
+                  </Row>
+                  {imageOnly ? null : <Pressable onPress={() => showDialog('Thêm video từ Link', 'Dán link TikTok/CapCut sẽ được bổ sung sau. Hãy bấm vào ô bên dưới để chọn ảnh/video từ máy.')} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.accent, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 6 }}>
                     <Ionicons name="videocam" size={14} color="#fff" />
                     <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>Thêm video từ Link</Text>
-                  </Pressable>
+                  </Pressable>}
                 </Row>
 
                 {/* Khung thẻ có border: media + footer CTA */}
@@ -369,7 +595,15 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
                     {card.preview || card.picture ? (
                       <Image source={{ uri: card.preview || card.picture }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
                     ) : (
-                      <Image source={uploadImg} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                      imageOnly ? (
+                        <View style={{ alignItems: 'center', gap: 10 }}>
+                          <Ionicons name="image-outline" size={48} color={c.accent} />
+                          <Body weight="700" size={15} color={c.accent}>{lang === 'vi' ? 'Nhấn để chọn ảnh' : 'Tap to choose image'}</Body>
+                          <Body muted size={12}>{lang === 'vi' ? 'Tối đa 30MB · Tỉ lệ 1:1 (vuông)' : 'Max 30MB · 1:1 ratio (square)'}</Body>
+                        </View>
+                      ) : (
+                        <Image source={uploadImg} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                      )
                     )}
                     {uploading === i ? (
                       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -386,8 +620,11 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
                   {/* Footer: tên + mô tả nhỏ + nút CTA */}
                   <Row style={{ justifyContent: 'space-between', alignItems: 'center', padding: 12, borderTopWidth: 1, borderColor: c.border }}>
                     <View style={{ flex: 1, paddingRight: 8, gap: 2 }}>
+                      {imageOnly && displayLink ? <Body muted size={11} numberOfLines={1}>{displayLink.toUpperCase()}</Body> : null}
                       <Body weight="700" size={14} numberOfLines={1}>{card.name || `Thẻ ${i + 1}`}</Body>
-                      {card.description ? <Body muted size={12} numberOfLines={1}>{card.description}</Body> : null}
+                      {imageOnly ? (
+                        displayLinkDescription ? <Body muted size={12} numberOfLines={1}>{displayLinkDescription}</Body> : null
+                      ) : card.description ? <Body muted size={12} numberOfLines={1}>{card.description}</Body> : null}
                     </View>
                     <View style={{ backgroundColor: ctaBtnBg, borderRadius: radius.sm, paddingHorizontal: 16, paddingVertical: 9 }}>
                       <Text style={{ color: c.text, fontWeight: '700', fontSize: 13 }}>{ctaLabel(card.CTAButton)}</Text>
@@ -404,20 +641,92 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
                 </Pressable>
 
                 <Field label="Tiêu đề" value={card.name} onChangeText={(t) => patchCard(i, { name: t })} placeholder="Nhập tiêu đề thẻ" />
-                <Field label="Mô tả" value={card.description} onChangeText={(t) => patchCard(i, { description: t })} placeholder="Nhập mô tả thẻ" />
+                {imageOnly ? (
+                  <>
+                    <Field label="Link hiển thị" value={displayLink} onChangeText={setDisplayLink} placeholder="facebook.com" />
+                    <Field label="Mô tả link hiển thị" value={displayLinkDescription} onChangeText={setDisplayLinkDescription} placeholder="Nhập mô tả dưới link" />
+                  </>
+                ) : (
+                  <Field label="Mô tả" value={card.description} onChangeText={(t) => patchCard(i, { description: t })} placeholder="Nhập mô tả thẻ" />
+                )}
                 {needUrl ? <Field label="Website URL" value={card.websiteUrl} onChangeText={(t) => patchCard(i, { websiteUrl: t })} placeholder="https://metus.vn" keyboardType="url" /> : null}
               </Card>
             );
           })}
 
+          {/* Album giả: chọn bố cục (section riêng, trên thư viện media) */}
+          {isAlbum ? (
+            <Card>
+              <AlbumLayoutPicker layout={albumLayout} onChange={(l) => { setAlbumLayout(l); setAlbumSlot(0); }} />
+            </Card>
+          ) : null}
+
+          {/* Thư viện media (giống FbMediaLibrarySection của metus-few) */}
+          <Card>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Label>Thư viện media ({library.length})</Label>
+              <Row gap={6}>
+                <Pressable onPress={() => setLibGrid(true)} hitSlop={6} style={{ padding: 6, borderRadius: radius.sm, backgroundColor: libGrid ? c.text : 'transparent' }}>
+                  <Ionicons name="grid" size={16} color={libGrid ? c.bg : c.faint} />
+                </Pressable>
+                <Pressable onPress={() => setLibGrid(false)} hitSlop={6} style={{ padding: 6, borderRadius: radius.sm, backgroundColor: !libGrid ? c.text : 'transparent' }}>
+                  <Ionicons name="reorder-four" size={16} color={!libGrid ? c.bg : c.faint} />
+                </Pressable>
+                <Pressable onPress={loadLibrary} hitSlop={6} style={{ padding: 6 }}>
+                  <Ionicons name="refresh" size={16} color={c.faint} />
+                </Pressable>
+              </Row>
+            </Row>
+            <Body muted size={12}>Bấm ảnh để gán cho {isAlbum ? `ô Ảnh ${albumSlot + 1}` : `Thẻ ${selectedCard + 1}`} · Giữ lâu để xóa</Body>
+            <Button title="Tải ảnh lên thư viện" icon="cloud-upload" variant="secondary" onPress={uploadToLibrary} loading={libUploading} full />
+            {libLoading && library.length === 0 ? (
+              <Row gap={10}><ActivityIndicator color={c.accent} /><Body muted>Đang tải thư viện…</Body></Row>
+            ) : library.length === 0 ? (
+              <Body muted size={13}>Chưa có ảnh nào trong thư viện.</Body>
+            ) : libGrid ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {library.map((img, idx) => {
+                  const active = libActive(img);
+                  return (
+                    <Pressable key={`${img.hash}-${idx}`} onPress={() => chooseFromLibrary(img)} onLongPress={() => confirmDeleteImage(img)}
+                      style={{ width: '31.5%', aspectRatio: 1, borderRadius: radius.sm, overflow: 'hidden', borderWidth: active ? 3 : 1, borderColor: active ? c.accent : c.border }}>
+                      <Image source={{ uri: img.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {library.map((img, idx) => {
+                  const active = libActive(img);
+                  return (
+                    <Pressable key={`${img.hash}-${idx}`} onPress={() => chooseFromLibrary(img)} onLongPress={() => confirmDeleteImage(img)}
+                      style={{ width: 96, height: 96, borderRadius: radius.sm, overflow: 'hidden', borderWidth: active ? 3 : 1, borderColor: active ? c.accent : c.border }}>
+                      <Image source={{ uri: img.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </Card>
+
           {/* Nội dung + hẹn lịch (ở dưới) */}
           <Card>
             <Field label="Nội dung bài viết" value={primaryText} onChangeText={setPrimaryText} multiline placeholder="Nhập nội dung bài đăng" />
-            <Row style={{ justifyContent: 'space-between' }}>
+            {isAlbum ? (
+              <Row style={{ justifyContent: 'space-between' }}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Body weight="600" size={14}>Ẩn bài viết</Body>
+                  <Body muted size={12}>Chỉ tạo bài (không hiện trên Page) để chạy quảng cáo</Body>
+                </View>
+                <Switch value={hidePost} onValueChange={setHidePost} trackColor={{ true: c.accent }} />
+              </Row>
+            ) : null}
+            {isAlbum && hidePost ? null : <Row style={{ justifyContent: 'space-between' }}>
               <Body weight="600" size={14}>Hẹn lịch</Body>
               <Switch value={scheduleEnabled} onValueChange={toggleSchedule} trackColor={{ true: c.accent }} />
-            </Row>
-            {scheduleEnabled ? (
+            </Row>}
+            {scheduleEnabled && !(isAlbum && hidePost) ? (
               <Pressable onPress={() => setPickerOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.input, borderWidth: 1, borderColor: c.inputBorder, borderRadius: radius.sm, paddingHorizontal: 12, paddingVertical: 13 }}>
                 <Ionicons name="calendar" size={18} color="#f97316" />
                 <Body size={14.5} weight="600" color={scheduleAt ? c.text : c.faint}>{scheduleAt ? fmtDateTime(scheduleAt) : 'Chọn ngày giờ'}</Body>
@@ -426,33 +735,15 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
                 <Ionicons name="time-outline" size={18} color={c.faint} />
               </Pressable>
             ) : null}
-            <Row style={{ justifyContent: 'space-between' }}>
+            {isAlbum && hidePost ? null : <Row style={{ justifyContent: 'space-between' }}>
               <Body weight="600" size={14}>Tự động like sau khi đăng</Body>
               <Switch value={likeEnabled} onValueChange={setLikeEnabled} trackColor={{ true: c.accent }} />
-            </Row>
+            </Row>}
           </Card>
 
           {error ? <Body color={c.danger} size={13}>{error}</Body> : null}
-          <Button title={scheduleEnabled ? 'Hẹn lịch đăng' : 'Đăng bài'} icon={scheduleEnabled ? 'time' : 'send'} onPress={create} loading={creating} full />
+          <Button title={isAlbum && hidePost ? 'Tạo bài ẩn' : scheduleEnabled ? 'Hẹn lịch đăng' : 'Đăng bài'} icon={scheduleEnabled && !(isAlbum && hidePost) ? 'time' : 'send'} onPress={create} loading={creating} full />
 
-          {posts.length ? (
-            <Card>
-              <Label>Kết quả ({posts.filter((p) => p.status === 'done').length}/{posts.length})</Label>
-              <ResultList
-                items={posts}
-                keyOf={(p) => p.pageId}
-                render={(p) => (
-                  <Row style={{ justifyContent: 'space-between' }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: c.text, fontWeight: '600' }} numberOfLines={1}>{p.pageName}</Text>
-                      {p.status === 'error' && p.note ? <Body muted size={12} numberOfLines={2}>{p.note}</Body> : null}
-                    </View>
-                    <Badge text={p.status === 'done' ? 'Đã đăng' : p.status === 'error' ? 'Lỗi' : '...'} tone={p.status === 'done' ? 'success' : p.status === 'error' ? 'danger' : 'muted'} />
-                  </Row>
-                )}
-              />
-            </Card>
-          ) : null}
         </>
       ) : null}
 
@@ -496,15 +787,19 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
       <PickerModal visible={ctaCard !== null} title="Tùy chọn nút" onClose={() => setCtaCard(null)} items={CTA_ACTIONS}
         keyOf={(a) => a.value} labelOf={(a) => a.label} selectedKeys={ctaCard !== null ? [cards[ctaCard].CTAButton] : []}
         onToggle={(a) => { if (ctaCard !== null) patchCard(ctaCard, { CTAButton: a.value }); }} />
+      <PostingModal visible={postModal} percent={postPercent} pageLabel={postPageLabel} scheduled={scheduleEnabled && !(isAlbum && hidePost)} />
       <DateTimePickerModal visible={pickerOpen} value={scheduleAt} onClose={() => setPickerOpen(false)} onConfirm={(d) => { setScheduleAt(d); setPickerOpen(false); }} />
     </>
   );
 }
 
-export default function FbVideoCarouselScreen() {
+/** Màn đăng bài Ads dùng chung: 2 ô, video 1 ô, ảnh 1 ô, 1 ô album giả. */
+export function AdPostTool({ mode }: { mode: AdPostMode }) {
   return (
     <Screen>
-      <ToolGate>{(dtsg, fbId) => <Runner dtsg={dtsg} fbId={fbId} />}</ToolGate>
+      <ToolGate require={mode === 'carousel2' ? 'plan' : 'package'}>
+        {(dtsg, fbId, user) => <Runner dtsg={dtsg} fbId={fbId} mode={mode} watermark={mode === 'carousel2' && needsWatermark(user)} />}
+      </ToolGate>
     </Screen>
   );
 }

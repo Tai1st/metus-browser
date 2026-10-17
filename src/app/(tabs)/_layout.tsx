@@ -108,7 +108,7 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen name="index" options={{ headerRight: () => <HeaderIcon name="notifications-outline" /> }} />
       <Tabs.Screen name="recharge" options={{ headerRight: () => <HeaderIcon name="time-outline" /> }} />
-      <Tabs.Screen name="tools" options={{ headerRight: () => <HeaderIcon name="grid-outline" /> }} />
+      <Tabs.Screen name="tools" options={{ headerShown: false }} />
       <Tabs.Screen name="plan" options={{ headerRight: () => <HeaderIcon name="notifications-outline" /> }} />
       <Tabs.Screen name="account" options={{ headerRight: () => <HeaderIcon name="settings-outline" /> }} />
     </Tabs>

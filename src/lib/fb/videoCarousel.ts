@@ -115,7 +115,22 @@ async function schedulePost(effectiveStoryId: string, dtsg: string, scheduledUni
   await instance.post('https://business.facebook.com/api/graphql/?metuscors=0', fd, { responseType: 'text' });
 }
 
+/** Loại bài Ads: 2 ô (carousel), video 1 ô, ảnh 1 ô. */
+export type AdPostMode = 'carousel2' | 'oneVideo' | 'onePicture' | 'fakeAlbum';
+
 export interface CreateCarouselParams {
+  /** Mặc định 'carousel2'. */
+  mode?: AdPostMode;
+  /** Ảnh 1 ô: link hiển thị (caption), ví dụ "facebook.com". */
+  displayLink?: string;
+  /** Ảnh 1 ô: mô tả dưới link hiển thị. */
+  displayLinkDescription?: string;
+  /** Album giả: url ảnh ghép đã upload. */
+  albumImageUrl?: string;
+  /** Album giả: link đích (affiliate) khi bấm vào ảnh. */
+  websiteUrl?: string;
+  /** Tạo bài nhưng KHÔNG publish (bài ẩn, chỉ dùng chạy quảng cáo). */
+  hidePost?: boolean;
   token: string;
   adAccountId: string;
   page: { id: string; name: string; access_token: string };
@@ -127,6 +142,8 @@ export interface CreateCarouselParams {
   like?: boolean;
   /** Unix time (giây) để hẹn lịch; bỏ trống = đăng ngay. */
   scheduleUnix?: number;
+  /** Tiến độ 0..1 của bài trên Page này (để hiện thanh %). */
+  onProgress?: (fraction: number) => void;
 }
 
 /** Like bài vừa đăng bằng page access token (best-effort). */
@@ -137,38 +154,102 @@ async function likePost(postId: string, pageAccessToken: string): Promise<void> 
   });
 }
 
-/** Tạo bài 2 ô (adcreative) rồi publish lên Page. Trả về postId. */
-export async function createCarouselPost(p: CreateCarouselParams): Promise<string> {
-  const child_attachments = p.cards.map((card, i) => {
-    const action = CTA_ACTIONS.find((a) => a.value === card.CTAButton) ?? CTA_ACTIONS[0];
-    const call_to_action: { type: string; value?: Record<string, string> } = { type: card.CTAButton };
-    let link = `https://facebook.com/${p.page.id}`;
-    if (card.CTAButton === 'LIKE_PAGE') {
-      call_to_action.value = { page: p.page.id };
-    } else if (action.input) {
-      link = card.websiteUrl || link;
-      call_to_action.value = { link };
-    }
+/** Nút CTA + link đích của 1 thẻ (giống metus-few). */
+function ctaFor(card: CardData, pageId: string): { link: string; call_to_action: { type: string; value?: Record<string, string> } } {
+  const action = CTA_ACTIONS.find((a) => a.value === card.CTAButton) ?? CTA_ACTIONS[0];
+  const call_to_action: { type: string; value?: Record<string, string> } = { type: card.CTAButton };
+  let link = `https://facebook.com/${pageId}`;
+  if (card.CTAButton === 'LIKE_PAGE') {
+    call_to_action.value = { page: pageId };
+  } else if (action.input) {
+    link = card.websiteUrl || link;
+    call_to_action.value = { link };
+  }
+  return { link, call_to_action };
+}
+
+/** Dựng object_story_spec theo loại bài — port từ 3 tool tương ứng của metus-few. */
+function buildObjectStorySpec(p: CreateCarouselParams): Record<string, unknown> {
+  const mode = p.mode ?? 'carousel2';
+  const pageId = p.page.id;
+
+  // Album giả: 1 ảnh ghép, tên/mô tả để khoảng trắng để FB không hiện khung link.
+  if (mode === 'fakeAlbum') {
     return {
-      description: p.watermark && i <= 1 ? 'Đăng 2 ô tại Metus' : card.description,
-      name: card.name,
-      link,
-      video_id: card.video_id,
-      picture: card.picture,
-      call_to_action,
+      page_id: pageId,
+      link_data: {
+        picture: p.albumImageUrl,
+        link: p.websiteUrl,
+        multi_share_optimized: true,
+        multi_share_end_card: false,
+        caption: p.displayLink,
+        description: '           ',
+        name: '         ',
+        message: p.primaryText,
+      },
     };
-  });
+  }
 
-  const object_story_spec = {
-    page_id: p.page.id,
-    link_data: {
-      message: p.primaryText,
-      child_attachments,
-      multi_share_optimized: true,
-      multi_share_end_card: false,
-    },
+  if (mode === 'carousel2') {
+    const child_attachments = p.cards.map((card, i) => {
+      const { link, call_to_action } = ctaFor(card, pageId);
+      return {
+        description: p.watermark && i === 0 ? 'Đăng 2 ô tại Metus' : card.description,
+        name: card.name,
+        link,
+        video_id: card.video_id,
+        picture: card.picture,
+        call_to_action,
+      };
+    });
+    return {
+      page_id: pageId,
+      link_data: { message: p.primaryText, child_attachments, multi_share_optimized: true, multi_share_end_card: false },
+    };
+  }
+
+  const card = p.cards[0];
+  const { link, call_to_action } = ctaFor(card, pageId);
+
+  // Video 1 ô: video_data; bỏ hẳn field rỗng (message/description) như Ads Manager.
+  if (mode === 'oneVideo' && card.video_id) {
+    return {
+      page_id: pageId,
+      video_data: {
+        video_id: card.video_id,
+        image_url: card.picture || '',
+        call_to_action,
+        title: card.name || '',
+        link_description: link,
+        ...(p.primaryText ? { message: p.primaryText } : {}),
+        ...(card.description ? { description: card.description } : {}),
+      },
+    };
+  }
+
+  // Ảnh 1 ô (hoặc tool video nhưng thẻ là ảnh): link_data.
+  const link_data: Record<string, unknown> = {
+    message: p.primaryText,
+    link,
+    picture: card.picture,
+    name: card.name,
+    description: card.description,
+    call_to_action,
   };
+  if (mode === 'onePicture') {
+    link_data.description = p.displayLinkDescription || card.description || '';
+    link_data.caption = p.displayLink || link;
+    link_data.multi_share_end_card = false;
+    link_data.multi_share_optimized = true;
+  }
+  return { page_id: pageId, link_data };
+}
 
+/** Tạo bài Ads (2 ô / video 1 ô / ảnh 1 ô) rồi publish (hoặc hẹn lịch) lên Page. Trả về postId. */
+export async function createCarouselPost(p: CreateCarouselParams): Promise<string> {
+  const object_story_spec = buildObjectStorySpec(p);
+
+  p.onProgress?.(0.1);
   const created = await exFetch<{ id: string }>(
     `${GRAPH}/v21.0/${p.adAccountId}/adcreatives?metuscors=0`,
     {
@@ -181,6 +262,7 @@ export async function createCarouselPost(p: CreateCarouselParams): Promise<strin
 
   let effectiveId = '';
   for (let i = 0; i < 25; i++) {
+    p.onProgress?.(0.3 + Math.min(i, 10) * 0.05);
     const eff = await getEffectiveObjectStory(created.id, p.token);
     if (eff?.effective_object_story_id) {
       effectiveId = eff.effective_object_story_id;
@@ -190,17 +272,43 @@ export async function createCarouselPost(p: CreateCarouselParams): Promise<strin
   }
   if (!effectiveId) throw new Error('Không lấy được object story id');
 
-  if (p.scheduleUnix) {
+  p.onProgress?.(0.85);
+  if (p.hidePost) {
+    // bài ẩn: không publish / không hẹn lịch
+  } else if (p.scheduleUnix) {
     await schedulePost(effectiveId, p.dtsg, p.scheduleUnix);
   } else {
     await publishStory(effectiveId, p.page.access_token);
   }
-  if (p.like) {
+  if (p.like && !p.hidePost) {
     try {
       await likePost(effectiveId, p.page.access_token);
     } catch {
       // like lỗi thì bỏ qua, bài vẫn đã đăng
     }
   }
+  p.onProgress?.(1);
   return effectiveId;
+}
+
+export interface AdImage {
+  hash: string;
+  url: string;
+}
+
+/** Thư viện ảnh đã upload lên ad account (GET /{act}/adimages). */
+export async function getAdImages(adAccountId: string, token: string): Promise<AdImage[]> {
+  const res = await exFetch<any>(`${GRAPH}/v21.0/${adAccountId}/adimages`, {
+    params: { access_token: token, fields: 'hash,url', limit: 1000, metuscors: 0 },
+  });
+  const data: any[] = res?.data ?? [];
+  return data.filter((x) => x?.url).map((x) => ({ hash: String(x.hash), url: String(x.url) }));
+}
+
+/** Xóa 1 ảnh khỏi thư viện ad account theo hash. */
+export async function deleteAdImage(adAccountId: string, token: string, hash: string): Promise<void> {
+  await exFetch(`${GRAPH}/v21.0/${adAccountId}/adimages`, {
+    method: 'DELETE',
+    params: { access_token: token, hash, metuscors: 0 },
+  });
 }

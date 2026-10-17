@@ -1,18 +1,55 @@
-import { router, type Href } from 'expo-router';
-import type { ReactNode } from 'react';
-import { ScrollView, View } from 'react-native';
+import { router, useFocusEffect, type Href } from 'expo-router';
+import { useCallback, useState, type ReactNode } from 'react';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import { Body, Button, Card, Label, Row, useColors } from '@/components/ui';
+import { Api, type MetusUser } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { useT } from '@/lib/i18n';
 import { useFbAccounts } from '@/lib/fb/accounts';
+import { checkPlan, type PlanRequirement } from '@/lib/plan';
 
 /**
- * Khung chung cho mọi tool: chặn chạy khi chưa có phiên FB hợp lệ (giống cách
- * metus-few chặn qua ModalCheckExtension + dtsg).
+ * User Metus (kèm gói), lấy mới mỗi lần màn tool được focus (để vừa mua gói xong
+ * quay lại là mở khóa ngay). Lỗi mạng thì dùng user đã lưu lúc đăng nhập.
  */
-export function ToolGate({ children }: { children: (dtsg: string, fbId: string) => ReactNode }) {
+function usePlanUser() {
+  const { user } = useAuth();
+  const [me, setMe] = useState<MetusUser | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      Api.me()
+        .then((u) => alive && setMe(u))
+        .catch(() => {})
+        .finally(() => alive && setChecking(false));
+      return () => {
+        alive = false;
+      };
+    }, []),
+  );
+
+  return { user: me ?? user, checking: checking && !me };
+}
+
+/**
+ * Khung chung cho mọi tool, cùng thứ tự kiểm tra với ToolCard của metus-few:
+ * 1. đã kết nối tài khoản FB chưa → 2. gói (theo `require`) → 3. phiên FB (dtsg).
+ */
+export function ToolGate({
+  require = 'package',
+  children,
+}: {
+  /** Mức gói yêu cầu (requireLogin/requirePackage của metus-few). */
+  require?: PlanRequirement;
+  children: (dtsg: string, fbId: string, user: MetusUser | null) => ReactNode;
+}) {
   const t = useT();
+  const c = useColors();
   const { current, session, sessionLoading, sessionError, reloadSession } = useFbAccounts();
+  const { user, checking } = usePlanUser();
 
   if (!current) {
     return (
@@ -20,6 +57,26 @@ export function ToolGate({ children }: { children: (dtsg: string, fbId: string) 
         <Label>{t('gate.noAccount')}</Label>
         <Body muted>{t('gate.noAccountDesc')}</Body>
         <Button title={t('gate.manage')} onPress={() => router.push('/' as Href)} />
+      </Card>
+    );
+  }
+  if (require !== 'none' && checking) {
+    return (
+      <Card>
+        <Row gap={10}>
+          <ActivityIndicator color={c.accent} />
+          <Body muted>{t('tool.loadingPlan')}</Body>
+        </Row>
+      </Card>
+    );
+  }
+  const block = checkPlan(user, require);
+  if (block) {
+    return (
+      <Card>
+        <Label>{t('gate.planRequired')}</Label>
+        <Body muted>{t(`tool.${block}`)}</Body>
+        <Button title={t('gate.viewPlans')} icon="ribbon" onPress={() => router.push('/plan' as Href)} />
       </Card>
     );
   }
@@ -46,7 +103,7 @@ export function ToolGate({ children }: { children: (dtsg: string, fbId: string) 
       </Card>
     );
   }
-  return <>{children(session.dtsg, current.id)}</>;
+  return <>{children(session.dtsg, current.id, user)}</>;
 }
 
 export function ResultList<T>({ items, keyOf, render }: { items: T[]; keyOf: (t: T, i: number) => string; render: (t: T) => ReactNode }) {

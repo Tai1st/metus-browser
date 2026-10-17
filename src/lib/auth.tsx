@@ -1,12 +1,15 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 import { Api, type MetusUser } from './api';
+import { GoogleCancelled, getGoogleFirebaseIdToken } from './googleAuth';
 import * as storage from './storage';
 
 interface AuthState {
   user: MetusUser | null;
   isLoggedIn: boolean;
   login(email: string, password: string): Promise<void>;
+  /** Trả về false nếu người dùng tự hủy chọn tài khoản Google. */
+  loginWithGoogle(): Promise<boolean>;
   logout(): void;
 }
 
@@ -24,13 +27,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u);
   }, []);
 
+  const loginWithGoogle = useCallback(async () => {
+    let idToken: string;
+    try {
+      idToken = await getGoogleFirebaseIdToken();
+    } catch (e) {
+      if (e instanceof GoogleCancelled) return false;
+      throw e;
+    }
+    const { accessToken, user: u } = await Api.loginSocial(idToken);
+    storage.set(storage.StorageKey.ACCESS_TOKEN, accessToken);
+    storage.set(storage.StorageKey.USER, u);
+    setUser(u);
+    return true;
+  }, []);
+
   const logout = useCallback(() => {
     storage.clear(storage.StorageKey.ACCESS_TOKEN);
     storage.clear(storage.StorageKey.USER);
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, isLoggedIn: user !== null, login, logout }), [user, login, logout]);
+  const value = useMemo(() => ({ user, isLoggedIn: user !== null, login, loginWithGoogle, logout }), [user, login, loginWithGoogle, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

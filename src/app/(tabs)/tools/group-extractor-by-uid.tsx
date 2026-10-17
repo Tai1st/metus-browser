@@ -1,11 +1,12 @@
 import * as Clipboard from 'expo-clipboard';
 import { useRef, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { ResultList, ToolGate } from '@/components/tool';
 import { Badge, Body, Button, Card, Field, Label, Row, Screen, useColors } from '@/components/ui';
 import { useT } from '@/lib/i18n';
 import { fetchCollectionToken, fetchGroupsPage } from '@/lib/fb/GroupExtractorByUid';
+import { showDialog } from '@/components/Dialog';
 
 interface GroupRow {
   id: string;
@@ -91,7 +92,7 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
 
   const copyAll = async () => {
     await Clipboard.setStringAsync(groups.map((g) => `${g.id}\t${g.name}\t${g.url}`).join('\n'));
-    Alert.alert(t('tool.copiedN', { n: groups.length }));
+    showDialog(t('tool.copiedN', { n: groups.length }));
   };
 
   return (
@@ -133,7 +134,7 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
 export default function GroupExtractorByUidScreen() {
   return (
     <Screen>
-      <ToolGate>{(dtsg, fbId) => <Runner dtsg={dtsg} fbId={fbId} />}</ToolGate>
+      <ToolGate require="package">{(dtsg, fbId) => <Runner dtsg={dtsg} fbId={fbId} />}</ToolGate>
     </Screen>
   );
 }

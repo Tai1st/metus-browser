@@ -1,31 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 
 import { LanguageSheet } from '@/components/LanguageSheet';
 import { ThemeSheet } from '@/components/ThemeSheet';
 import { Badge, Body, Button, Card, Divider, IconCircle, Label, Row, Screen, useColors } from '@/components/ui';
 import { Api, type MetusUser } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { planInfo } from '@/lib/plan';
 import { LANGUAGES, useCurrency, useI18n } from '@/lib/i18n';
 import { useTheme } from '@/lib/theme';
+import { showDialog } from '@/components/Dialog';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-
-const isExAudience = (v?: string) => (v ?? '').toLowerCase() === 'ex';
-
-function planInfo(u: MetusUser | null): { name?: string; active: boolean; until?: string; daysLeft?: number } {
-  const plan = (u?.plan as { name?: string; audience?: string; type?: string } | undefined) ?? undefined;
-  const cp = (u?.customerPlan as { expirationDate?: string; audience?: string } | undefined) ?? undefined;
-  // Chỉ tính gói thuộc nhóm "ex" (Metus Browser); gói APP/WEB không tính ở đây.
-  const isEx = isExAudience(plan?.audience) || isExAudience(plan?.type) || isExAudience(cp?.audience);
-  if (!plan?.name || !isEx) return { name: undefined, active: false };
-  const exp = cp?.expirationDate ? new Date(cp.expirationDate) : undefined;
-  const until = exp ? exp.toLocaleDateString('vi-VN') : undefined;
-  const daysLeft = exp ? Math.max(0, Math.ceil((exp.getTime() - Date.now()) / 86400000)) : undefined;
-  return { name: plan.name, active: exp ? exp.getTime() > Date.now() : true, until, daysLeft };
-}
 
 function SettingRow({ icon, title, value, onPress, danger }: { icon: IconName; title: string; value?: string; onPress: () => void; danger?: boolean }) {
   const c = useColors();
@@ -60,7 +48,7 @@ export default function AccountScreen() {
   const plan = planInfo(info);
 
   const confirmLogout = () =>
-    Alert.alert(t('account.logout'), t('account.logoutConfirm'), [
+    showDialog(t('account.logout'), t('account.logoutConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('account.logout'), style: 'destructive', onPress: logout },
     ]);

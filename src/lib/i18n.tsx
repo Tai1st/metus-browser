@@ -51,6 +51,9 @@ const vi: Dict = {
   'stack.autoPost': 'Đăng bài lên nhóm',
   'stack.groupExtractor': 'Lấy nhóm theo UID',
   'stack.videoCarousel': 'Đăng Video 2 Ô',
+  'stack.oneCardVideo': 'Đăng Video 1 Ô',
+  'stack.oneCardPicture': 'Đăng Ảnh 1 Ô',
+  'stack.fakeAlbum': 'Đăng 1 Ô (album giả)',
 
   // Bottom sheet chọn ngôn ngữ
   'language.title': 'Chọn ngôn ngữ',
@@ -77,6 +80,23 @@ const vi: Dict = {
   'login.submit': 'Đăng nhập',
   'login.needBoth': 'Nhập email và mật khẩu',
   'login.footer': 'Dùng tài khoản metus.vn của bạn',
+  'login.noAccount': 'Chưa có tài khoản?',
+  'login.or': 'hoặc',
+  'login.google': 'Đăng nhập với Google',
+  'login.registerNow': 'Đăng ký ngay',
+
+  // Đăng ký (giống metus-few auth.*)
+  'register.title': 'Tạo tài khoản',
+  'register.confirmPassword': 'Xác nhận mật khẩu',
+  'register.submit': 'Tạo tài khoản',
+  'register.haveAccount': 'Đã có tài khoản?',
+  'register.loginHere': 'Đăng nhập tại đây',
+  'register.success': 'Tạo tài khoản thành công',
+  'register.emailRequired': 'Email là bắt buộc',
+  'register.emailInvalid': 'Email không hợp lệ',
+  'register.passwordRequired': 'Mật khẩu là bắt buộc',
+  'register.passwordMin': 'Mật khẩu phải có ít nhất 6 ký tự',
+  'register.passwordMismatch': 'Mật khẩu xác nhận không khớp',
 
   // Tài khoản
   'account.defaultName': 'Metus User',
@@ -286,6 +306,13 @@ const vi: Dict = {
   'gate.noDtsg': 'Không lấy được fb_dtsg. Hãy đăng nhập lại tài khoản.',
   'gate.retry': 'Thử lại',
   'gate.reLogin': 'Đăng nhập lại',
+  'gate.planRequired': 'Chưa thể dùng công cụ',
+  // giống locales/vi.json của metus-few
+  'tool.loadingPlan': 'Đang tải thông tin gói, vui lòng chờ...',
+  'tool.needFreePlan': 'Vui lòng đăng ký gói miễn phí để tạo bài viết',
+  'tool.upgradePlan': 'Vui lòng nâng cấp gói để sử dụng công cụ này',
+  'tool.expired': 'Gói bạn đã hết hạn, vui lòng nâng cấp gói để sử dụng công cụ này',
+  'gate.viewPlans': 'Xem gói',
 
   // Trình duyệt
   'browser.reload': 'Tải lại',
@@ -337,6 +364,9 @@ const en: Dict = {
   'stack.autoPost': 'Post to groups',
   'stack.groupExtractor': 'Groups by UID',
   'stack.videoCarousel': 'Post 2-card video',
+  'stack.oneCardVideo': 'Post 1-card video',
+  'stack.oneCardPicture': 'Post 1-card image',
+  'stack.fakeAlbum': 'Post 1-card (fake album)',
 
   'language.title': 'Choose language',
   'language.subtitle': 'Change the display language of the app',
@@ -360,6 +390,22 @@ const en: Dict = {
   'login.submit': 'Sign in',
   'login.needBoth': 'Enter email and password',
   'login.footer': 'Use your metus.vn account',
+  'login.noAccount': 'Don’t have an account?',
+  'login.or': 'or',
+  'login.google': 'Login with Google',
+  'login.registerNow': 'Register now',
+
+  'register.title': 'Create an account',
+  'register.confirmPassword': 'Confirm password',
+  'register.submit': 'Create an account',
+  'register.haveAccount': 'Already have an account?',
+  'register.loginHere': 'Login here',
+  'register.success': 'Account created successfully',
+  'register.emailRequired': 'Email is required',
+  'register.emailInvalid': 'Invalid email',
+  'register.passwordRequired': 'Password is required',
+  'register.passwordMin': 'Password must be at least 6 characters',
+  'register.passwordMismatch': 'Passwords do not match',
 
   'account.defaultName': 'Metus User',
   'account.balance': 'Balance',
@@ -560,6 +606,12 @@ const en: Dict = {
   'gate.noDtsg': 'Could not get fb_dtsg. Please sign in again.',
   'gate.retry': 'Retry',
   'gate.reLogin': 'Sign in again',
+  'gate.planRequired': 'Tool unavailable',
+  'tool.loadingPlan': 'Loading plan details, please wait...',
+  'tool.needFreePlan': 'Please register a free plan to create a post',
+  'tool.upgradePlan': 'Please upgrade your plan to use this tool',
+  'tool.expired': 'Your plan has expired, please upgrade your plan to use this tool',
+  'gate.viewPlans': 'View plans',
 
   'browser.reload': 'Reload',
 

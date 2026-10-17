@@ -97,6 +97,15 @@ export const Api = {
     });
     return res.data;
   },
+  /** Đăng nhập Google: gửi Firebase idToken (POST /auth/login/social, giống metus-few). */
+  async loginSocial(idToken: string) {
+    const machineCode = await getMachineCode();
+    const res = await call<{ data: { accessToken: string; user: MetusUser } }>('POST', '/auth/login/social', { idToken, machineCode });
+    return res.data;
+  },
+  /** Đăng ký tài khoản (POST /auth/register, giống metus-few). */
+  register: (email: string, password: string, ref?: string) =>
+    call<unknown>('POST', '/auth/register', ref ? { email, password, ref } : { email, password }),
   me: () => call<{ data: MetusUser }>('GET', '/customer/me').then((r) => r.data),
 
   // --- Nạp tiền (giống metus-few) ---

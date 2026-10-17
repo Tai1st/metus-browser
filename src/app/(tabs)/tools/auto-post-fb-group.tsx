@@ -138,7 +138,7 @@ function Runner({ dtsg }: { dtsg: string }) {
 export default function AutoPostFbGroupScreen() {
   return (
     <Screen>
-      <ToolGate>{(dtsg) => <Runner dtsg={dtsg} />}</ToolGate>
+      <ToolGate require="plan">{(dtsg) => <Runner dtsg={dtsg} />}</ToolGate>
     </Screen>
   );
 }

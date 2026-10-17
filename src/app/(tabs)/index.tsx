@@ -3,11 +3,12 @@ import { Metus } from '@metus/http';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Image, View } from 'react-native';
+import { Image, View } from 'react-native';
 
 import { Badge, Body, Button, Card, EmptyState, ErrorText, Field, Label, Row, Screen, Title, useColors } from '@/components/ui';
 import { useT } from '@/lib/i18n';
 import { useFbAccounts, type FbAccountRow } from '@/lib/fb/accounts';
+import { showDialog } from '@/components/Dialog';
 
 function AccountCard({ a, isCurrent }: { a: FbAccountRow; isCurrent: boolean }) {
   const t = useT();
@@ -15,7 +16,7 @@ function AccountCard({ a, isCurrent }: { a: FbAccountRow; isCurrent: boolean }) 
   const [busy, setBusy] = useState(false);
 
   const copyCookie = () =>
-    Alert.alert(
+    showDialog(
       t('connect.copyCookieTitle'),
       t('connect.copyCookieMsg'),
       [
@@ -24,14 +25,14 @@ function AccountCard({ a, isCurrent }: { a: FbAccountRow; isCurrent: boolean }) 
           text: t('common.copy'),
           onPress: async () => {
             await Clipboard.setStringAsync(await Metus.accounts.exportCookieString(a.id));
-            Alert.alert(t('connect.cookieCopied'));
+            showDialog(t('connect.cookieCopied'));
           },
         },
       ],
     );
 
   const confirmRemove = () =>
-    Alert.alert(t('connect.removeTitle'), t('connect.removeMsg', { name: a.name, id: a.id }), [
+    showDialog(t('connect.removeTitle'), t('connect.removeMsg', { name: a.name, id: a.id }), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('common.delete'), style: 'destructive', onPress: () => remove(a.id) },
     ]);
