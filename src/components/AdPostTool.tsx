@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/Logo';
@@ -17,6 +17,7 @@ import { type AdAccount } from '@/lib/fb/ads';
 import { CTA_ACTIONS, createCarouselPost, deleteAdImage, getAdImages, uploadAdImage, uploadAdVideo, type AdImage, type AdPostMode, type CardData } from '@/lib/fb/videoCarousel';
 import { showDialog } from '@/components/Dialog';
 import { needsWatermark } from '@/lib/plan';
+import { detectVideoLink, uploadAdVideoFromLink } from '@/lib/fb/videoFromLink';
 import { ALBUM_LAYOUTS, AlbumLayoutPicker, FakeAlbumEditor, captureAlbum, type AlbumLayout } from '@/components/FakeAlbumEditor';
 
 // Ảnh placeholder ô chọn video (theo ngôn ngữ).
@@ -218,6 +219,54 @@ function PickerModal<T>({ visible, title, onClose, items, keyOf, labelOf, avatar
   );
 }
 
+/** Modal nhập link video (TikTok / Facebook / CapCut) — giống ô dán link của metus-few. */
+function LinkVideoModal({ visible, onClose, onSubmit }: { visible: boolean; onClose: () => void; onSubmit: (url: string) => void }) {
+  const c = useColors();
+  const [url, setUrl] = useState('');
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    if (visible) {
+      setUrl('');
+      setErr('');
+    }
+  }, [visible]);
+  const submit = () => {
+    const v = url.trim();
+    if (!detectVideoLink(v)) return setErr('Vui lòng nhập link TikTok, Facebook hoặc CapCut hợp lệ');
+    onSubmit(v);
+  };
+  const SOURCES: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string }[] = [
+    { icon: 'logo-tiktok', label: 'TikTok' },
+    { icon: 'logo-facebook', label: 'Facebook' },
+    { icon: 'cut-outline', label: 'CapCut' },
+  ];
+  return (
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
+        <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={onClose} />
+        <View style={[{ backgroundColor: c.bg, borderRadius: 20, padding: 20, gap: 14 }, shadow(c, 2)]}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Body weight="700" size={18}>Thêm video từ Link</Body>
+            <Pressable onPress={onClose} hitSlop={10}><Ionicons name="close" size={22} color={c.faint} /></Pressable>
+          </Row>
+          <Row gap={8}>
+            {SOURCES.map((s) => (
+              <View key={s.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: c.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Ionicons name={s.icon} size={14} color={c.text} />
+                <Body size={12} weight="600">{s.label}</Body>
+              </View>
+            ))}
+          </Row>
+          <Field label="Link video" value={url} onChangeText={(v) => { setUrl(v); setErr(''); }} placeholder="https://www.tiktok.com/@.../video/..." keyboardType="url" autoCapitalize="none" onSubmitEditing={submit} />
+          {err ? <Body color={c.danger} size={13}>{err}</Body> : null}
+          <Body muted size={12}>Video được Facebook tải thẳng về tài khoản quảng cáo, có thể mất 10–60 giây.</Body>
+          <Button title="Tải video" icon="cloud-download-outline" onPress={submit} full />
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 /** Modal hiển thị tiến độ đăng bài (giống thiết kế Metus). */
 function PostingModal({ visible, percent, pageLabel, scheduled }: {
   visible: boolean; percent: number; pageLabel: string; scheduled: boolean;
@@ -291,7 +340,7 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
   const { lang } = useI18n();
   const uploadImg = lang === 'vi' ? UPLOAD_VI : UPLOAD_EN;
   const ctaBtnBg = scheme === 'dark' ? '#3B3D3E' : '#E2E5E9';
-  const { accounts, current, select } = useFbAccounts();
+  const { accounts, current, select, session } = useFbAccounts();
   // Phiên Ads được nạp sẵn từ lúc mở app (AdsSessionProvider) — dùng lại, không scrape lại.
   const { ads, loading, error: adsError, reload } = useAdsSession();
   const token = ads?.token ?? '';
@@ -311,9 +360,22 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
     setScheduleEnabled(v);
     if (v && !scheduleAt) setScheduleAt(new Date(Date.now() + 40 * 60000)); // mặc định +40 phút (FB >=35')
   };
-  const [cards, setCards] = useState<CardData[]>(() =>
-    Array.from({ length: numCards }, () => (imageOnly ? { ...defaultCard(), name: 'Hello Metus' } : defaultCard())),
-  );
+  const [cards, setCards] = useState<CardData[]>(() => {
+    const init = Array.from({ length: numCards }, () => (imageOnly ? { ...defaultCard(), name: 'Hello Metus' } : defaultCard()));
+    // Đăng 2 ô: tự điền lại thẻ 2 đã dùng lần trước
+    if (mode === 'carousel2') {
+      const saved = storage.get<CardData>(storage.StorageKey.FB_CAROUSEL_CARD2);
+      if (saved) init[1] = { ...init[1], ...saved, preview: undefined };
+    }
+    return init;
+  });
+  const card2 = cards[1];
+  useEffect(() => {
+    if (mode !== 'carousel2' || !card2) return;
+    // preview là file tạm trên máy → không lưu; picture/video_id là URL/ID trên Facebook nên dùng lại được
+    const { preview: _preview, ...rest } = card2;
+    storage.set(storage.StorageKey.FB_CAROUSEL_CARD2, rest);
+  }, [mode, card2]);
   // Ảnh 1 ô: link hiển thị + mô tả dưới link (giống metus-few).
   const [displayLink, setDisplayLink] = useState('facebook.com');
   const [displayLinkDescription, setDisplayLinkDescription] = useState('Post was auto generate by metus v2');
@@ -450,6 +512,24 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
   const togglePage = (id: string) =>
     setSelectedPageIds((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
 
+  // Thêm video từ link (TikTok / Facebook / CapCut)
+  const [linkCard, setLinkCard] = useState<number | null>(null);
+  const addVideoFromLink = async (i: number, url: string) => {
+    if (!adAccount) return setError('Chưa có tài khoản quảng cáo');
+    setLinkCard(null);
+    setSelectedCard(i);
+    setUploading(i);
+    setError('');
+    try {
+      const { videoId, picture } = await uploadAdVideoFromLink({ adAccountId: adAccount.id, token, url, asyncToken: session?.asyncToken, fbId });
+      patchCard(i, { video_id: videoId, picture, preview: undefined });
+    } catch (e) {
+      setError(describeError(e));
+    } finally {
+      setUploading(null);
+    }
+  };
+
   const pickMedia = async (i: number) => {
     if (!adAccount) return;
     setSelectedCard(i);
@@ -583,7 +663,7 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
                     <Label>{numCards > 1 ? `Thẻ ${i + 1}` : imageOnly ? 'Ảnh bài đăng' : 'Video / ảnh bài đăng'}</Label>
                     {numCards > 1 && selectedCard === i ? <Badge text="Đang chọn" tone="accent" /> : null}
                   </Row>
-                  {imageOnly ? null : <Pressable onPress={() => showDialog('Thêm video từ Link', 'Dán link TikTok/CapCut sẽ được bổ sung sau. Hãy bấm vào ô bên dưới để chọn ảnh/video từ máy.')} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.accent, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 6 }}>
+                  {imageOnly ? null : <Pressable onPress={() => setLinkCard(i)} disabled={uploading !== null} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.accent, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 6 }}>
                     <Ionicons name="videocam" size={14} color="#fff" />
                     <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>Thêm video từ Link</Text>
                   </Pressable>}
@@ -728,7 +808,7 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
             </Row>}
             {scheduleEnabled && !(isAlbum && hidePost) ? (
               <Pressable onPress={() => setPickerOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.input, borderWidth: 1, borderColor: c.inputBorder, borderRadius: radius.sm, paddingHorizontal: 12, paddingVertical: 13 }}>
-                <Ionicons name="calendar" size={18} color="#f97316" />
+                <Ionicons name="calendar" size={18} color={c.accent} />
                 <Body size={14.5} weight="600" color={scheduleAt ? c.text : c.faint}>{scheduleAt ? fmtDateTime(scheduleAt) : 'Chọn ngày giờ'}</Body>
                 <View style={{ flex: 1 }} />
                 {scheduleAt ? <Pressable onPress={() => setScheduleAt(null)} hitSlop={8}><Ionicons name="close" size={18} color={c.faint} /></Pressable> : null}
@@ -787,6 +867,7 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
       <PickerModal visible={ctaCard !== null} title="Tùy chọn nút" onClose={() => setCtaCard(null)} items={CTA_ACTIONS}
         keyOf={(a) => a.value} labelOf={(a) => a.label} selectedKeys={ctaCard !== null ? [cards[ctaCard].CTAButton] : []}
         onToggle={(a) => { if (ctaCard !== null) patchCard(ctaCard, { CTAButton: a.value }); }} />
+      <LinkVideoModal visible={linkCard !== null} onClose={() => setLinkCard(null)} onSubmit={(url) => { if (linkCard !== null) addVideoFromLink(linkCard, url); }} />
       <PostingModal visible={postModal} percent={postPercent} pageLabel={postPageLabel} scheduled={scheduleEnabled && !(isAlbum && hidePost)} />
       <DateTimePickerModal visible={pickerOpen} value={scheduleAt} onClose={() => setPickerOpen(false)} onConfirm={(d) => { setScheduleAt(d); setPickerOpen(false); }} />
     </>

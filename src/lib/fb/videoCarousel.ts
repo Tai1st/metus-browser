@@ -55,27 +55,44 @@ export async function uploadAdVideo(adAccountId: string, token: string, file: Pi
   });
   const videoId = data?.id;
   if (!videoId) throw new Error('Upload video thất bại');
+  return { videoId, picture: await waitVideoThumbnail(videoId, token) };
+}
 
-  await delay(5000);
-  let picture = '';
-  for (let i = 0; i < 25; i++) {
-    const thumbs = await getVideoThumbnails(videoId, token);
-    const list = thumbs?.thumbnails?.data ?? [];
-    const preferred = list.find((t: any) => t?.is_preferred) ?? list[0];
-    if (preferred?.uri || thumbs?.picture) {
-      picture = preferred?.uri ?? thumbs.picture;
-      break;
+/** Đợi Facebook xử lý video và trả ảnh bìa (thumbnail ưu tiên, hoặc `picture`). */
+export async function waitVideoThumbnail(videoId: string, token: string): Promise<string> {
+  await delay(4000);
+  let lastErr = '';
+  // ~3 phút: video dài/nặng Facebook xử lý lâu mới có thumbnail
+  for (let i = 0; i < 45; i++) {
+    try {
+      let thumbs = await getVideoThumbnails(videoId, token);
+      // Graph đôi khi trả content-type text/javascript → exFetch không tự parse
+      if (typeof thumbs === 'string') thumbs = JSON.parse(thumbs);
+      if (thumbs?.error) {
+        lastErr = thumbs.error.message ?? JSON.stringify(thumbs.error);
+        console.warn('[thumb]', videoId, 'lỗi', lastErr);
+      } else {
+        const list: any[] = thumbs?.thumbnails?.data ?? [];
+        const preferred = list.find((t) => t?.is_preferred) ?? list[0];
+        console.log('[thumb]', videoId, `lần ${i + 1}`, 'thumbnails:', list.length, 'picture:', !!thumbs?.picture, 'status:', thumbs?.status?.video_status);
+        if (preferred?.uri) return preferred.uri;
+        // `picture` có sẵn ngay cả khi chưa xử lý xong (ảnh xám) → chỉ dùng khi video đã sẵn sàng
+        if (thumbs?.picture && thumbs?.status?.video_status === 'ready') return thumbs.picture;
+      }
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      console.warn('[thumb]', videoId, 'exception', lastErr);
     }
-    await delay(3000);
+    await delay(i < 10 ? 2000 : 4000);
   }
-  return { videoId, picture };
+  throw new Error(`Không lấy được ảnh bìa video${lastErr ? `: ${lastErr}` : ' (Facebook chưa xử lý xong video, thử lại sau)'}`);
 }
 
 export async function getVideoThumbnails(videoId: string, token: string): Promise<any> {
   return exFetch(`${GRAPH}/${videoId}`, {
     params: {
       access_token: token,
-      fields: 'id,length,picture,thumbnails{uri,is_preferred}',
+      fields: 'id,length,picture,status,thumbnails{uri,is_preferred}',
       metuscors: 0,
     },
   });
@@ -191,14 +208,16 @@ function buildObjectStorySpec(p: CreateCarouselParams): Record<string, unknown> 
   }
 
   if (mode === 'carousel2') {
+    const FREE_PLAN_IMAGE = 'https://iili.io/3wyRiiX.md.jpg';
     const child_attachments = p.cards.map((card, i) => {
       const { link, call_to_action } = ctaFor(card, pageId);
       return {
-        description: p.watermark && i === 0 ? 'Đăng 2 ô tại Metus' : card.description,
+        // Gói miễn phí/hết hạn (giống metus-few): cả 2 thẻ ghi watermark, thẻ 2 thay bằng ảnh Metus
+        description: p.watermark && i <= 1 ? 'Đăng 2 ô tại Metus' : card.description,
         name: card.name,
         link,
         video_id: card.video_id,
-        picture: card.picture,
+        picture: p.watermark && i === 1 ? FREE_PLAN_IMAGE : card.picture,
         call_to_action,
       };
     });
@@ -299,7 +318,7 @@ export interface AdImage {
 /** Thư viện ảnh đã upload lên ad account (GET /{act}/adimages). */
 export async function getAdImages(adAccountId: string, token: string): Promise<AdImage[]> {
   const res = await exFetch<any>(`${GRAPH}/v21.0/${adAccountId}/adimages`, {
-    params: { access_token: token, fields: 'hash,url', limit: 1000, metuscors: 0 },
+    params: { access_token: token, fields: 'hash,url', limit: 100, metuscors: 0 },
   });
   const data: any[] = res?.data ?? [];
   return data.filter((x) => x?.url).map((x) => ({ hash: String(x.hash), url: String(x.url) }));

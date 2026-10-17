@@ -17,6 +17,8 @@ export enum StorageKey {
   THEME = 'theme',
   LANGUAGE = 'language',
   FB_POST_HISTORY = 'fbPostHistory',
+  /** Thẻ 2 của đăng 2 ô — tự điền lại lần sau. */
+  FB_CAROUSEL_CARD2 = 'fbCarouselCard2',
 }
 
 const PREFIX = 'metus:';
