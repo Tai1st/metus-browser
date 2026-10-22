@@ -84,6 +84,9 @@ export async function getPhotoIdFromImageUrl(imageUrl: string, pageId: string, d
 
 /** Tạo 1 phần tử Canvas (ảnh có link vuốt lên). */
 export async function createCanvasElement(photoId: string, linkUrl: string, pageId: string, adAccountId: string, userId: string, token: string): Promise<string> {
+  // photo_id là số rất lớn (15-16 chữ số), vượt Number.MAX_SAFE_INTEGER — nếu đi qua
+  // Number()/JSON.stringify sẽ bị làm tròn sai số, FB trả lỗi "(#100) must be a valid
+  // photo id". Chèn chuỗi số thô (không ngoặc kép) vào JSON như bản web để giữ nguyên.
   const canvasPhoto = JSON.stringify({
     name: 'Photo',
     bottom_padding: '0',
@@ -93,9 +96,9 @@ export async function createCanvasElement(photoId: string, linkUrl: string, page
     style: 'FIT_TO_WIDTH',
     element_group_key: null,
     hide_product_prices: false,
-    photo_id: Number(photoId),
+    photo_id: '__PHOTO_ID__',
     product_tags: null,
-  });
+  }).replace('"__PHOTO_ID__"', photoId);
   const body = new URLSearchParams({ canvas_photo: canvasPhoto, __ad_account_id: adAccountId, __a: '1', __user: userId });
   const data = await exFetch<{ id?: string; error?: { message?: string } }>(
     `${GRAPH}/v21.0/${pageId}/canvas_elements/?access_token=${token}&method=post&metuscors=0`,

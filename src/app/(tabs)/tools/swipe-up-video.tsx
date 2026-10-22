@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { PickerModal, SelectorRow } from '@/components/AdPostTool';
+import { LinkVideoModal, PickerModal, SelectorRow } from '@/components/AdPostTool';
 import { ResultList, ToolGate } from '@/components/tool';
-import { Badge, Body, Button, Card, Field, Label, Row, Screen, radius, useColors } from '@/components/ui';
+import { Badge, Body, Button, Card, Field, GradientText, Label, Row, Screen, radius, shadow, useColors } from '@/components/ui';
 import { describeError } from '@/lib/api';
 import { useAdsSession } from '@/lib/fb/adsSession';
 import type { AdAccount } from '@/lib/fb/ads';
@@ -18,14 +18,29 @@ import {
   getCreativeStoryId,
   getPageCanvases,
   getPhotoIdFromImageUrl,
+  getVideoThumbnailChoices,
   publishCanvas,
   publishSwipeUpStory,
   uploadCanvasImage,
 } from '@/lib/fb/swipeUpVideo';
 import { uploadAdVideo } from '@/lib/fb/videoCarousel';
-import { detectVideoLink, uploadAdVideoFromLink } from '@/lib/fb/videoFromLink';
+import { uploadAdVideoFromLink } from '@/lib/fb/videoFromLink';
 import { useT } from '@/lib/i18n';
 import { pickMedia as chooseMedia } from '@/lib/pickMedia';
+
+// Nền chung (không chữ) cho ô chọn video khi chưa có nội dung — chữ đè lên bằng i18n
+// nên dùng chung 1 ảnh cho mọi ngôn ngữ, không cần tạo file ảnh riêng theo locale.
+const UPLOAD_BG = require('../../../../assets/images/upload-video-bg.png');
+
+function SwipeChevron({ c }: { c: ReturnType<typeof useColors> }) {
+  return (
+    <View style={{ position: 'absolute', top: -14, left: 0, right: 0, alignItems: 'center' }}>
+      <View style={[{ width: 28, height: 28, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }, shadow(c, 1)]}>
+        <Ionicons name="chevron-up" size={16} color={c.faint} />
+      </View>
+    </View>
+  );
+}
 
 type PostRow = { pageId: string; pageName: string; pagePicture?: string; status: 'pending' | 'done' | 'error'; note?: string };
 
@@ -52,20 +67,30 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
   const currentPage = pages.find((p) => p.id === selectedPageIds[0]);
 
   // Video
-  const [videoUrl, setVideoUrl] = useState('');
   const [videoId, setVideoId] = useState('');
   const [cover, setCover] = useState('');
   const [videoBusy, setVideoBusy] = useState(false);
+  const [linkModal, setLinkModal] = useState(false);
+  const [thumbChoices, setThumbChoices] = useState<{ id: string; url: string }[]>([]);
+  const [thumbLoading, setThumbLoading] = useState(false);
 
   const resetVideo = () => {
     setVideoId('');
     setCover('');
+    setThumbChoices([]);
   };
 
-  const addVideoFromLink = async () => {
-    const url = videoUrl.trim();
-    if (!detectVideoLink(url)) return setError(t('swipeUp.err.badLink'));
+  const loadThumbChoices = (id: string) => {
+    setThumbLoading(true);
+    getVideoThumbnailChoices(id, token)
+      .then((list) => setThumbChoices(list))
+      .catch(() => {})
+      .finally(() => setThumbLoading(false));
+  };
+
+  const addVideoFromLink = async (url: string) => {
     if (!adAccount) return setError(t('swipeUp.err.noAdAccount'));
+    setLinkModal(false);
     setError('');
     setVideoBusy(true);
     resetVideo();
@@ -73,7 +98,7 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
       const { videoId: id, picture } = await uploadAdVideoFromLink({ adAccountId: adAccount.id, token, url, asyncToken: undefined, fbId });
       setVideoId(id);
       setCover(picture);
-      setVideoUrl('');
+      loadThumbChoices(id);
     } catch (e) {
       setError(describeError(e));
     } finally {
@@ -92,6 +117,7 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
       const { videoId: id, picture } = await uploadAdVideo(adAccount.id, token, a);
       setVideoId(id);
       setCover(picture);
+      loadThumbChoices(id);
     } catch (e) {
       setError(describeError(e));
     } finally {
@@ -106,20 +132,26 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
   const [galleryLoading, setGalleryLoading] = useState(false);
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
   const [swipeLink, setSwipeLink] = useState('https://metus.vn');
+  const [galleryGrid, setGalleryGrid] = useState(true);
 
-  useEffect(() => {
-    setSelectedCanvasId(null);
-    setGallery([]);
+  const loadGallery = () => {
     if (!currentPage || !token) return;
     setGalleryLoading(true);
     getPageCanvases(currentPage.id, token, { isPublished: true, limit: 50 })
       .then((r) => setGallery(r.data))
       .catch(() => {})
       .finally(() => setGalleryLoading(false));
+  };
+
+  useEffect(() => {
+    setSelectedCanvasId(null);
+    setGallery([]);
+    loadGallery();
   }, [currentPage?.id, token]);
 
   const pickCanvasImage = async () => {
     if (!adAccount) return setError('');
+    if (!videoId) return setError(t('swipeUp.err.noVideoYet'));
     const [a] = await chooseMedia('image');
     if (!a) return;
     setError('');
@@ -215,69 +247,160 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
       {token ? (
         <>
           <Card>
-            <Label>{t('swipeUp.videoSection')}</Label>
-            <Pressable onPress={pickVideoFile} disabled={videoBusy} style={{ aspectRatio: 16 / 9, borderRadius: radius.md, overflow: 'hidden', backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-              {cover ? (
-                <Image source={{ uri: cover }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-              ) : (
-                <View style={{ alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="videocam-outline" size={40} color={c.accent} />
-                  <Body weight="700" size={14} color={c.accent}>{t('swipeUp.pickFile')}</Body>
-                </View>
-              )}
-              {videoBusy ? (
-                <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <ActivityIndicator color="#fff" />
-                  <Body size={12} color="#fff">{t('swipeUp.uploading')}</Body>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Label>{t('swipeUp.videoSection')}</Label>
+              <Pressable onPress={() => setLinkModal(true)} disabled={videoBusy} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.accent, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 6 }}>
+                <Ionicons name="videocam" size={14} color="#fff" />
+                <Body size={12} weight="700" color="#fff">{t('swipeUp.linkBtn')}</Body>
+              </Pressable>
+            </Row>
+            <View style={{ borderRadius: radius.md, overflow: 'visible' }}>
+              <View style={{ borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md, overflow: 'hidden' }}>
+                <Pressable onPress={pickVideoFile} disabled={videoBusy} style={{ aspectRatio: 1, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  {cover ? (
+                    <Image source={{ uri: cover }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  ) : (
+                    <>
+                      <Image source={UPLOAD_BG} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                      <View style={{ position: 'absolute', left: 0, right: 0, bottom: '24%', alignItems: 'center', gap: 10, paddingHorizontal: 16 }}>
+                        <GradientText size={24}>{t('swipeUp.pickFile')}</GradientText>
+                        <Row gap={6} style={{ alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 }}>
+                          <View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="videocam" size={12} color="#fff" />
+                          </View>
+                          <Body size={12} weight="700" color="#1d3f72">{t('swipeUp.pickFileHint')}</Body>
+                        </Row>
+                      </View>
+                    </>
+                  )}
+                  {videoBusy ? (
+                    <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <ActivityIndicator color="#fff" size="large" />
+                      <Body size={12} weight="700" color="#fff">{t('swipeUp.uploading')}</Body>
+                    </View>
+                  ) : null}
+                </Pressable>
+              </View>
+              {videoId && (thumbLoading || thumbChoices.length > 1) ? (
+                <View style={{ backgroundColor: c.card, paddingHorizontal: 8, paddingVertical: 8 }}>
+                  {thumbLoading ? (
+                    <Row gap={10}><ActivityIndicator color={c.accent} size="small" /><Body muted size={12}>…</Body></Row>
+                  ) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                      {thumbChoices.map((th) => {
+                        const active = cover === th.url;
+                        return (
+                          <Pressable key={th.id} onPress={() => setCover(th.url)}
+                            style={{ width: 56, height: 56, borderRadius: radius.sm, overflow: 'hidden', borderWidth: active ? 3 : 1, borderColor: active ? c.accent : c.border }}>
+                            <Image source={{ uri: th.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
                 </View>
               ) : null}
-            </Pressable>
-            <Field value={videoUrl} onChangeText={setVideoUrl} editable={!videoBusy} autoCapitalize="none" keyboardType="url" placeholder={t('swipeUp.linkPh')}
-              icon="link-outline" rightIcon="cloud-download-outline" onRightIconPress={addVideoFromLink} />
+              <View style={{ position: 'relative' }}>
+                <Row style={{ backgroundColor: c.card, borderBottomLeftRadius: radius.md, borderBottomRightRadius: radius.md, padding: 12 }}>
+                  <Body weight="700" size={14} numberOfLines={1}>{headline || t('swipeUp.headline')}</Body>
+                </Row>
+                <SwipeChevron c={c} />
+              </View>
+            </View>
           </Card>
 
           <Card>
             <Label>{t('swipeUp.canvasSection')}</Label>
-            <Row gap={10}>
-              <Pressable onPress={pickCanvasImage} disabled={canvasBusy} style={{ flex: 1, aspectRatio: 1, borderRadius: radius.md, overflow: 'hidden', backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={[{ borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: c.border, backgroundColor: c.card, opacity: videoId ? 1 : 0.5 }, shadow(c, 1)]}>
+              <Pressable onPress={pickCanvasImage} disabled={canvasBusy || !videoId} style={{ aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}>
                 {canvasImage ? (
-                  <Image source={{ uri: canvasImage }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  <Image source={{ uri: canvasImage }} style={{ width: '100%', height: '100%', position: 'absolute' }} resizeMode="cover" />
                 ) : (
-                  <View style={{ alignItems: 'center', gap: 6 }}>
-                    <Ionicons name="image-outline" size={30} color={c.accent} />
-                    <Body weight="700" size={12} color={c.accent}>{t('swipeUp.uploadNew')}</Body>
-                  </View>
+                  <>
+                    <Image source={UPLOAD_BG} style={{ width: '100%', height: '100%', position: 'absolute' }} resizeMode="cover" />
+                    <View style={{ position: 'absolute', left: 0, right: 0, bottom: '24%', alignItems: 'center', gap: 10, paddingHorizontal: 16 }}>
+                      <GradientText size={24}>{t('swipeUp.pickImage')}</GradientText>
+                      <Row gap={6} style={{ alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 }}>
+                        <View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
+                          <Ionicons name="image" size={12} color="#fff" />
+                        </View>
+                        <Body size={12} weight="700" color="#1d3f72">{t('swipeUp.pickImageHint')}</Body>
+                      </Row>
+                    </View>
+                  </>
                 )}
+                {!videoId ? (
+                  <View style={{ position: 'absolute', bottom: 10 }}>
+                    <Body muted size={11}>{t('swipeUp.err.noVideoYet')}</Body>
+                  </View>
+                ) : null}
                 {canvasBusy ? (
-                  <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
                     <ActivityIndicator color="#fff" />
                   </View>
                 ) : null}
               </Pressable>
-              <View style={{ flex: 2, gap: 6 }}>
-                <Body muted size={12}>{t('swipeUp.useExisting')}</Body>
-                {galleryLoading ? (
-                  <ActivityIndicator color={c.accent} />
-                ) : gallery.length === 0 ? (
-                  <Body muted size={12}>{t('swipeUp.noCanvases')}</Body>
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                    {gallery.map((cv) => {
-                      const active = selectedCanvasId === cv.id;
-                      const thumb = getCanvasThumbnail(cv);
-                      return (
-                        <Pressable key={cv.id} onPress={() => { setSelectedCanvasId(active ? null : cv.id); setCanvasImage(''); }}
-                          style={{ width: 64, height: 64, borderRadius: radius.sm, overflow: 'hidden', borderWidth: active ? 3 : 1, borderColor: active ? c.accent : c.border }}>
-                          {thumb ? <Image source={{ uri: thumb }} style={{ width: '100%', height: '100%' }} resizeMode="cover" /> : <View style={{ flex: 1, backgroundColor: c.chip, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="apps" size={18} color={c.faint} /></View>}
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
-                )}
-                {selectedCanvasId ? <Badge text={getCanvasName(gallery.find((g) => g.id === selectedCanvasId)!)} tone="accent" /> : null}
+              <View style={{ alignItems: 'center', paddingVertical: 14, gap: 6 }}>
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="chevron-up" size={16} color="#fff" />
+                </View>
+                <Body muted size={11}>{t('swipeUp.swipeFooter')}</Body>
               </View>
+            </View>
+            <Row gap={6} style={{ alignItems: 'center' }}>
+              <Body muted size={12}>{t('swipeUp.useExisting')}</Body>
+              {selectedCanvasId ? <Badge text={getCanvasName(gallery.find((g) => g.id === selectedCanvasId)!)} tone="accent" /> : <Body muted size={11}>{t('swipeUp.pickFromGallery')}</Body>}
             </Row>
             <Field label={t('swipeUp.swipeLink')} value={swipeLink} onChangeText={setSwipeLink} placeholder={t('swipeUp.swipeLinkPh')} autoCapitalize="none" keyboardType="url" />
+          </Card>
+
+          <Card>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Row gap={6}>
+                <Pressable onPress={() => setGalleryGrid(true)} style={{ padding: 8, borderRadius: radius.sm, backgroundColor: galleryGrid ? c.text : 'transparent' }}>
+                  <Ionicons name="grid" size={16} color={galleryGrid ? c.card : c.faint} />
+                </Pressable>
+                <Pressable onPress={() => setGalleryGrid(false)} style={{ padding: 8, borderRadius: radius.sm, backgroundColor: !galleryGrid ? c.text : 'transparent' }}>
+                  <Ionicons name="reorder-four" size={16} color={!galleryGrid ? c.card : c.faint} />
+                </Pressable>
+                <Pressable onPress={loadGallery} disabled={galleryLoading} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#a855f7', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 7 }}>
+                  <Ionicons name="albums" size={14} color="#fff" />
+                  <Body size={12} weight="700" color="#fff">{t('swipeUp.canvasGallery')}</Body>
+                </Pressable>
+              </Row>
+              <Body muted size={12}>{t('swipeUp.canvasCount', { n: gallery.length })}</Body>
+            </Row>
+            {galleryLoading ? (
+              <Row gap={10}><ActivityIndicator color={c.accent} /><Body muted size={12}>…</Body></Row>
+            ) : gallery.length === 0 ? (
+              <Body muted size={12}>{t('swipeUp.noCanvases')}</Body>
+            ) : galleryGrid ? (
+              <Row style={{ flexWrap: 'wrap' }} gap={8}>
+                {gallery.map((cv) => {
+                  const active = selectedCanvasId === cv.id;
+                  const thumb = getCanvasThumbnail(cv);
+                  return (
+                    <Pressable key={cv.id} onPress={() => { setSelectedCanvasId(active ? null : cv.id); setCanvasImage(''); }}
+                      style={{ width: '31%', aspectRatio: 1, borderRadius: radius.sm, overflow: 'hidden', borderWidth: active ? 3 : 1, borderColor: active ? c.accent : c.border }}>
+                      {thumb ? <Image source={{ uri: thumb }} style={{ width: '100%', height: '100%' }} resizeMode="cover" /> : <View style={{ flex: 1, backgroundColor: c.chip, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="apps" size={18} color={c.faint} /></View>}
+                    </Pressable>
+                  );
+                })}
+              </Row>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {gallery.map((cv) => {
+                  const active = selectedCanvasId === cv.id;
+                  const thumb = getCanvasThumbnail(cv);
+                  return (
+                    <Pressable key={cv.id} onPress={() => { setSelectedCanvasId(active ? null : cv.id); setCanvasImage(''); }}
+                      style={{ width: 90, height: 90, borderRadius: radius.sm, overflow: 'hidden', borderWidth: active ? 3 : 1, borderColor: active ? c.accent : c.border }}>
+                      {thumb ? <Image source={{ uri: thumb }} style={{ width: '100%', height: '100%' }} resizeMode="cover" /> : <View style={{ flex: 1, backgroundColor: c.chip, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="apps" size={18} color={c.faint} /></View>}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
           </Card>
 
           <Card>
@@ -320,6 +443,7 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
       <PickerModal visible={adsPicker} title={t('swipeUp.adAccountPlaceholder')} onClose={() => setAdsPicker(false)} items={adAccounts}
         keyOf={(a) => a.id} labelOf={(a) => `${a.name} (${a.account_id ?? a.id})`} selectedKeys={adAccount ? [adAccount.id] : []}
         onToggle={(a) => setAdAccount(a)} />
+      <LinkVideoModal visible={linkModal} onClose={() => setLinkModal(false)} onSubmit={addVideoFromLink} />
     </>
   );
 }

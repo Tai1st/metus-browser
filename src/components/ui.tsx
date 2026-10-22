@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { ComponentProps, ReactNode } from 'react';
+import MaskedView from '@react-native-masked-view/masked-view';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -166,6 +167,52 @@ export function Body({ children, muted, mono, selectable, size = 14, weight = '4
     <Text selectable={selectable} numberOfLines={numberOfLines} style={{ color: color ?? (muted ? c.muted : c.text), fontSize: size, fontWeight: weight, fontFamily: mono ? (Platform.OS === 'ios' ? 'Menlo' : 'monospace') : undefined, lineHeight: size * 1.4 }}>
       {children}
     </Text>
+  );
+}
+
+// Text tô gradient (ví dụ xanh dương → xanh lá) — mask chữ bằng một dải màu nội suy,
+// vì RN không hỗ trợ gradient trên Text và dự án chưa cài expo-linear-gradient.
+export function GradientText({ children, size = 14, weight = '700', from = '#2563eb', to = '#16a34a', style }: {
+  children: string; size?: number; weight?: '400' | '500' | '600' | '700'; from?: string; to?: string; style?: ViewStyle;
+}) {
+  const steps = 20;
+  const hexToRgb = (hex: string) => {
+    const n = parseInt(hex.replace('#', ''), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const [r1, g1, b1] = hexToRgb(from);
+  const [r2, g2, b2] = hexToRgb(to);
+  // Trên Android, MaskedView không tự co kích thước theo maskElement khi cha không
+  // ép chiều rộng cố định (ví dụ nằm trong View chỉ có alignItems:'center') — chữ bị
+  // mất vì dải gradient co về 0. Đo trước bằng 1 Text ẩn, rồi gán width/height tường
+  // minh cho MaskedView + dải màu.
+  const height = size * 1.3;
+  const [width, setWidth] = useState(0);
+  return (
+    <View style={style}>
+      <Text
+        onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+        style={{ fontSize: size, fontWeight: weight, position: 'absolute', opacity: 0 }}
+      >
+        {children}
+      </Text>
+      {width > 0 ? (
+        <MaskedView
+          style={{ width, height }}
+          maskElement={<Text style={{ fontSize: size, fontWeight: weight }}>{children}</Text>}
+        >
+          <View style={{ flexDirection: 'row', width, height }}>
+            {Array.from({ length: steps }).map((_, i) => {
+              const t = i / (steps - 1);
+              const r = Math.round(r1 + (r2 - r1) * t);
+              const g = Math.round(g1 + (g2 - g1) * t);
+              const b = Math.round(b1 + (b2 - b1) * t);
+              return <View key={i} style={{ flex: 1, backgroundColor: `rgb(${r},${g},${b})` }} />;
+            })}
+          </View>
+        </MaskedView>
+      ) : null}
+    </View>
   );
 }
 

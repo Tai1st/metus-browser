@@ -17,6 +17,7 @@ export default function ToolsStackLayout() {
         headerStyle: { backgroundColor: c.bg },
         headerTintColor: c.text,
         headerTitleStyle: { fontWeight: '800' },
+        headerTitleAlign: 'center',
         headerBackButtonDisplayMode: 'minimal',
       }}>
       <Stack.Screen

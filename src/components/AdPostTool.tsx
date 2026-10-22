@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/Logo';
 import { ResultList, ToolGate } from '@/components/tool';
-import { Badge, Body, Button, Card, Field, Label, Row, Screen, radius, shadow, useColors } from '@/components/ui';
+import { Badge, Body, Button, Card, Field, GradientText, Label, Row, Screen, radius, shadow, useColors } from '@/components/ui';
 import { describeError } from '@/lib/api';
 import * as storage from '@/lib/storage';
 import { useI18n } from '@/lib/i18n';
@@ -21,8 +21,8 @@ import { detectVideoLink, uploadAdVideoFromLink } from '@/lib/fb/videoFromLink';
 import { ALBUM_LAYOUTS, AlbumLayoutPicker, FakeAlbumEditor, captureAlbum, type AlbumLayout } from '@/components/FakeAlbumEditor';
 
 // Ảnh placeholder ô chọn video (theo ngôn ngữ).
-const UPLOAD_VI = require('../../assets/images/upload-video-vi.png');
-const UPLOAD_EN = require('../../assets/images/upload-video-en.png');
+// Nền chung (không chữ) cho ô chọn video — chữ đè lên bằng lang hiện tại, không cần 2 ảnh riêng.
+const UPLOAD_BG = require('../../assets/images/upload-video-bg.png');
 
 type PostRow = { pageId: string; pageName: string; status: 'pending' | 'done' | 'error'; note?: string };
 type HistoryItem = { postId?: string; pageId: string; pageName: string; pagePicture?: string; status: 'done' | 'error'; at: number };
@@ -220,7 +220,7 @@ export function PickerModal<T>({ visible, title, onClose, items, keyOf, labelOf,
 }
 
 /** Modal nhập link video (TikTok / Facebook / CapCut) — giống ô dán link của metus-few. */
-function LinkVideoModal({ visible, onClose, onSubmit }: { visible: boolean; onClose: () => void; onSubmit: (url: string) => void }) {
+export function LinkVideoModal({ visible, onClose, onSubmit }: { visible: boolean; onClose: () => void; onSubmit: (url: string) => void }) {
   const c = useColors();
   const [url, setUrl] = useState('');
   const [err, setErr] = useState('');
@@ -338,7 +338,6 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
   const c = useColors();
   const { scheme } = useTheme();
   const { lang } = useI18n();
-  const uploadImg = lang === 'vi' ? UPLOAD_VI : UPLOAD_EN;
   const ctaBtnBg = scheme === 'dark' ? '#3B3D3E' : '#E2E5E9';
   const { session } = useFbAccounts();
   // Phiên Ads được nạp sẵn từ lúc mở app (AdsSessionProvider) — dùng lại, không scrape lại.
@@ -679,7 +678,25 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
                           <Body muted size={12}>{lang === 'vi' ? 'Tối đa 30MB · Tỉ lệ 1:1 (vuông)' : 'Max 30MB · 1:1 ratio (square)'}</Body>
                         </View>
                       ) : (
-                        <Image source={uploadImg} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                        <>
+                          <Image source={UPLOAD_BG} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                          <View style={{ position: 'absolute', left: 0, right: 0, bottom: '24%', alignItems: 'center', gap: 10, paddingHorizontal: 16 }}>
+                            <GradientText size={24}>{lang === 'vi' ? 'Nhấn để chọn video hoặc ảnh' : 'Tap to choose video or photo'}</GradientText>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 }}>
+                              <Row gap={6} style={{ alignItems: 'center' }}>
+                                <View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
+                                  <Ionicons name="videocam" size={12} color="#fff" />
+                                </View>
+                                <Text style={{ color: '#1d3f72', fontWeight: '700', fontSize: 12 }}>{lang === 'vi' ? 'Tối đa 100MB' : 'Max 100MB'}</Text>
+                              </Row>
+                              <View style={{ width: 1, height: 16, backgroundColor: 'rgba(29,63,114,0.25)' }} />
+                              <Row gap={6} style={{ alignItems: 'center' }}>
+                                <Ionicons name="scan-outline" size={16} color="#1d3f72" />
+                                <Text style={{ color: '#1d3f72', fontWeight: '700', fontSize: 12 }}>{lang === 'vi' ? 'Tỉ lệ 1:1 (vuông)' : '1:1 ratio (square)'}</Text>
+                              </Row>
+                            </View>
+                          </View>
+                        </>
                       )
                     )}
                     {uploading === i ? (
