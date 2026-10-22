@@ -340,7 +340,7 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
   const { lang } = useI18n();
   const uploadImg = lang === 'vi' ? UPLOAD_VI : UPLOAD_EN;
   const ctaBtnBg = scheme === 'dark' ? '#3B3D3E' : '#E2E5E9';
-  const { accounts, current, select, session } = useFbAccounts();
+  const { session } = useFbAccounts();
   // Phiên Ads được nạp sẵn từ lúc mở app (AdsSessionProvider) — dùng lại, không scrape lại.
   const { ads, loading, error: adsError, reload } = useAdsSession();
   const token = ads?.token ?? '';
@@ -412,7 +412,6 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
     storage.set(historyKey, []);
   };
 
-  const [fbPicker, setFbPicker] = useState(false);
   const [pagePicker, setPagePicker] = useState(false);
   const [adsPicker, setAdsPicker] = useState(false);
   const [ctaCard, setCtaCard] = useState<number | null>(null);
@@ -618,7 +617,6 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
     <>
       {/* 3 dropdown: Tài khoản FB / Trang / Tài khoản Ads */}
       <Card>
-        <SelectorRow label="Tài khoản Facebook" avatar={current?.picture as string | undefined} text={current?.name as string | undefined} placeholder="Chọn tài khoản" onPress={() => setFbPicker(true)} />
         <SelectorRow label="Trang" avatar={pageAvatar} text={pageText} placeholder="Chọn trang" onPress={() => setPagePicker(true)} />
         <SelectorRow label="Tài khoản Ads" text={adAccount ? (adAccount.account_id ?? adAccount.id) : ''} placeholder="Chọn tài khoản quảng cáo" onPress={() => setAdsPicker(true)} />
       </Card>
@@ -854,9 +852,6 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
       ) : null}
 
       {/* Modals chọn */}
-      <PickerModal visible={fbPicker} title="Tài khoản Facebook" onClose={() => setFbPicker(false)} items={accounts}
-        keyOf={(a) => a.id} labelOf={(a) => a.name} avatarOf={(a) => a.picture} selectedKeys={current ? [current.id] : []}
-        onToggle={(a) => select(a.id)} />
       <PickerModal visible={pagePicker} title="Chọn trang" onClose={() => setPagePicker(false)} items={pages} multi
         keyOf={(p) => p.id} labelOf={(p) => p.name} avatarOf={(p) => p.picture} selectedKeys={selectedPageIds}
         onToggle={(p) => togglePage(p.id)} />
