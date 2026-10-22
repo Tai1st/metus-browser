@@ -6,6 +6,7 @@ import { showDialog } from '@/components/Dialog';
 import { Api, onUnauthorized, type MetusUser } from './api';
 import { tr } from './i18n';
 import { GoogleCancelled, getGoogleFirebaseIdToken } from './googleAuth';
+import { cancelPlanReminders, ensureNotifications, syncPlanReminders } from './notify';
 import * as storage from './storage';
 
 interface AuthState {
@@ -45,9 +46,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const check = () => {
       if (!storage.get(storage.StorageKey.ACCESS_TOKEN)) return;
       Api.me()
-        .then((u) => storage.set(storage.StorageKey.USER, u))
+        .then((u) => {
+          storage.set(storage.StorageKey.USER, u);
+          syncPlanReminders(u);
+        })
         .catch(() => {});
     };
+    ensureNotifications();
     check();
     const sub = AppState.addEventListener('change', (s) => s === 'active' && check());
     return () => sub.remove();
@@ -78,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     storage.clear(storage.StorageKey.ACCESS_TOKEN);
     storage.clear(storage.StorageKey.USER);
+    cancelPlanReminders();
     setUser(null);
   }, []);
 

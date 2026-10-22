@@ -15,6 +15,7 @@ import { joinGroupRequest } from '@/lib/fb/AutoJoinFbGroup';
 import { useAdsSession } from '@/lib/fb/adsSession';
 import { editComment, getGroupInfo, getGroupPostIds, getGroups, getLinkPreview, postComment, type CommentRange, type GroupItem, type LocalFile } from '@/lib/fb/Group';
 import { useT } from '@/lib/i18n';
+import { notifyNow } from '@/lib/notify';
 import { pickMedia } from '@/lib/pickMedia';
 import { spinContent } from '@/lib/spin';
 import * as storage from '@/lib/storage';
@@ -384,7 +385,7 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
 
   const patch = (key: string, p: Partial<CommentItem>) => setItems((prev) => prev.map((x) => (x.key === key ? { ...x, ...p } : x)));
 
-  const comment = async (item: CommentItem) => {
+  const comment = async (item: CommentItem): Promise<boolean> => {
     try {
       const enabled = scenarios.filter((s) => s.enabled && s.content.trim());
       let sc: CommentScenario | null = null;
@@ -403,8 +404,10 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
       }
       counterRef.current++;
       patch(item.key, { status: 'success', url: res.url });
+      return true;
     } catch (e) {
       patch(item.key, { status: 'failed', note: describeError(e) });
+      return false;
     }
   };
 
@@ -449,11 +452,15 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
 
     const thread = Math.max(1, form.thread);
     setBatch({ cur: 0, total: Math.ceil(todo.length / thread) });
+    let okCount = 0;
+    let failCount = 0;
     for (let i = 0, b = 0; i < todo.length && !stopRef.current; i += thread, b++) {
       setBatch((x) => ({ ...x, cur: b + 1 }));
       const part = todo.slice(i, i + thread);
       setItems((prev) => [...prev, ...part]);
-      await Promise.all(part.map(comment));
+      const rs = await Promise.all(part.map(comment));
+      okCount += rs.filter(Boolean).length;
+      failCount += rs.filter((r) => !r).length;
       if (i + thread < todo.length && !stopRef.current) {
         const wait = Math.random() * Math.max(0, form.delayMax - form.delayMin) + form.delayMin;
         const end = Date.now() + wait * 1000;
@@ -470,6 +477,7 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
     setRunning(false);
     setBatch({ cur: 0, total: 0 });
     setDelayLeft(null);
+    if (okCount + failCount > 0) notifyNow(t('gc.bgTitle'), t('notify.commentDone', { ok: okCount, fail: failCount }));
     if (!stopped && form.repeatEnabled && !isFreePlan) {
       setCycleAt(form.cycleMode === 'custom' ? nextCustomRun(form.customTimes)?.getTime() ?? null : Date.now() + form.repeatIntervalHours * 3600_000);
     }

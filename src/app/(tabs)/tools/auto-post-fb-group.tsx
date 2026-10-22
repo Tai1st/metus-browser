@@ -31,6 +31,7 @@ import {
 import { describeError } from '@/lib/api';
 import { spinContent } from '@/lib/spin';
 import { useT } from '@/lib/i18n';
+import { notifyNow } from '@/lib/notify';
 import { pickMedia } from '@/lib/pickMedia';
 import * as storage from '@/lib/storage';
 import * as bg from '@metus/background';
@@ -357,6 +358,8 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
     const xpostIds = crossPost ? ids.slice(1) : [];
     const thread = Math.max(1, form.thread);
     setBatch({ cur: 0, total: Math.ceil(mainIds.length / thread) });
+    let okCount = 0;
+    let failCount = 0;
 
     for (let i = 0, b = 0; i < mainIds.length && !stopRef.current; i += thread, b++) {
       setBatch((x) => ({ ...x, cur: b + 1 }));
@@ -386,6 +389,8 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
       setPosts((prev) => [...rows, ...prev]);
 
       const results = await Promise.all(batchIds.map((id, k) => postToGroup(id, data, rows[k].key)));
+      okCount += results.filter(Boolean).length;
+      failCount += results.filter((r) => !r).length;
       // Cross-post: nhóm chính thành công thì các nhóm kèm theo cũng đã được Facebook nhận
       rows.slice(batchIds.length).forEach((r) =>
         patchPost(r.key, results[0] ? { status: 'success', url: `https://www.facebook.com/groups/${r.group.id}`, note: t('gp.crossPost') } : { status: 'failed', note: t('gp.mainFailed') }),
@@ -407,6 +412,8 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
     setRunning(false);
     setBatch({ cur: 0, total: 0 });
     setDelayLeft(null);
+
+    if (okCount + failCount > 0) notifyNow(t('gp.bgTitle'), t('notify.postDone', { ok: okCount, fail: failCount }));
 
     // Lặp lại (chỉ khi app còn mở) — gói miễn phí không dùng được
     if (!stopped && form.repeatEnabled && !isFreePlan) {

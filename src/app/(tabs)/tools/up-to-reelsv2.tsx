@@ -18,6 +18,7 @@ import type { LocalFile } from '@/lib/fb/Group';
 import { commentWithToken, downloadVideo, publishReel, resolveTiktokLink } from '@/lib/fb/reels';
 import { detectVideoLink, fetchCapcutDownloadUrl, fetchFacebookDownloadUrl } from '@/lib/fb/videoFromLink';
 import { useT } from '@/lib/i18n';
+import { notifyNow } from '@/lib/notify';
 import { pickMedia } from '@/lib/pickMedia';
 import * as bg from '@metus/background';
 
@@ -251,6 +252,7 @@ function Runner({ user }: { user: MetusUser | null }) {
     bg.start(t('reels.bgTitle'), t('reels.bgRunning', { done: 0, total: todo.length })).catch(() => {});
     const perPage = new Map<string, number>();
     let done = 0;
+    let failed = 0;
     for (const [i, r] of todo.entries()) {
       const count = perPage.get(r.page.id) ?? 0;
       if (count >= limit) continue;
@@ -270,6 +272,7 @@ function Runner({ user }: { user: MetusUser | null }) {
         perPage.set(r.page.id, count + 1);
       } catch (e) {
         patch(r.key, { status: 'error', error: describeError(e) });
+        failed++;
       }
       done++;
       bg.update(t('reels.bgTitle'), t('reels.bgRunning', { done, total: todo.length })).catch(() => {});
@@ -277,6 +280,7 @@ function Runner({ user }: { user: MetusUser | null }) {
     }
     bg.stop().catch(() => {});
     setRunning(false);
+    notifyNow(t('reels.bgTitle'), t('notify.reelsDone', { ok: done - failed, fail: failed }));
   };
   useEffect(() => () => {
     bg.stop().catch(() => {});

@@ -19,6 +19,7 @@ import { downloadVideo, resolveTiktokLink } from '@/lib/fb/reels';
 import { publishStory, storyAttachment, uploadStoryPhoto, uploadStoryVideo } from '@/lib/fb/stories';
 import { detectVideoLink, fetchCapcutDownloadUrl, fetchFacebookDownloadUrl } from '@/lib/fb/videoFromLink';
 import { useT } from '@/lib/i18n';
+import { notifyNow } from '@/lib/notify';
 import { pickMedia } from '@/lib/pickMedia';
 import * as storage from '@/lib/storage';
 import * as bg from '@metus/background';
@@ -235,6 +236,7 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
     setRunning(true);
     bg.start(t('stories.bgTitle'), t('stories.bgRunning', { done: 0, total: todo.length })).catch(() => {});
     let done = 0;
+    let failed = 0;
     for (const [i, s] of todo.entries()) {
       if (!runningRef.current) break;
       patch(s.key, { status: 'uploading', error: undefined });
@@ -245,6 +247,7 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
         patch(s.key, { status: scheduledUnix ? 'scheduled' : 'published' });
       } catch (e) {
         patch(s.key, { status: 'error', error: describeError(e) });
+        failed++;
       }
       done++;
       bg.update(t('stories.bgTitle'), t('stories.bgRunning', { done, total: todo.length })).catch(() => {});
@@ -262,6 +265,7 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
     runningRef.current = false;
     setRunning(false);
     bg.stop().catch(() => {});
+    notifyNow(t('stories.bgTitle'), t('notify.storiesDone', { ok: done - failed, fail: failed }));
     showDialog(t('stories.processed', { n: done }));
   };
   const stop = () => {
