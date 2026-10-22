@@ -19,6 +19,10 @@ export enum StorageKey {
   FB_POST_HISTORY = 'fbPostHistory',
   /** Thẻ 2 của đăng 2 ô — tự điền lại lần sau. */
   FB_CAROUSEL_CARD2 = 'fbCarouselCard2',
+  /** Tool đăng bài nhóm: form, kịch bản, bộ lọc đã lưu. */
+  AUTO_POST_GROUP = 'autoPostGroup',
+  /** Tool bình luận nhóm: form, nhóm đã chọn, kịch bản, bộ lọc. */
+  AUTO_COMMENT_GROUP = 'autoCommentGroup',
 }
 
 const PREFIX = 'metus:';

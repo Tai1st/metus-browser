@@ -37,6 +37,11 @@ export interface MetusHttpRequest {
   credentials?: 'omit' | 'include';
   /** Id tài khoản (c_user). Bỏ trống = tài khoản hiện tại khi credentials là "include". */
   account?: string;
+  /**
+   * Hành động dưới danh nghĩa Page: native gắn cookie `i_user=<id>` cho riêng request
+   * này (không ghi vào cookie jar của tài khoản). Chỉ áp dụng cho *.facebook.com.
+   */
+  iUser?: string;
   followRedirects?: boolean;
   proxy?: ProxyConfig;
   retry?: RetryConfig;
@@ -111,6 +116,7 @@ export interface NativeRequestSpec {
   headers: [string, string][];
   body: NativeBody;
   account?: string;
+  iUser?: string;
   timeoutMs: number;
   followRedirects: boolean;
   responseType: 'text' | 'base64' | 'file';

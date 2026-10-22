@@ -7,6 +7,7 @@ import okhttp3.CookieJar
 import okhttp3.Credentials
 import okhttp3.FormBody
 import okhttp3.Headers
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -133,14 +134,31 @@ class HttpEngine(
     }
   }
 
+  /**
+   * Bọc jar của tài khoản để hành động dưới danh nghĩa Page: thay cookie i_user
+   * bằng [pageId] cho request tới facebook.com, và không lưu i_user Facebook trả về
+   * (để các request khác vẫn là tài khoản cá nhân).
+   */
+  private fun actingAs(base: CookieJar, pageId: String): CookieJar = object : CookieJar {
+    override fun loadForRequest(url: HttpUrl): List<okhttp3.Cookie> {
+      val list = base.loadForRequest(url).filter { it.name != "i_user" }
+      if (url.host != "facebook.com" && !url.host.endsWith(".facebook.com")) return list
+      return list + okhttp3.Cookie.Builder().name("i_user").value(pageId).domain(url.host).path("/").secure().build()
+    }
+
+    override fun saveFromResponse(url: HttpUrl, cookies: List<okhttp3.Cookie>) =
+      base.saveFromResponse(url, cookies.filter { it.name != "i_user" })
+  }
+
   private fun executeOnce(spec: RequestSpec, started: Long): ResponseResult {
     val policy = policyProvider()
-    val jar: CookieJar = if (spec.account != null) {
+    val accountJar: CookieJar = if (spec.account != null) {
       jarProvider(spec.account)
         ?: throw MetusHttpException(ErrorCode.NO_ACCOUNT, "Không tìm thấy tài khoản ${spec.account}")
     } else {
       CookieJar.NO_COOKIES
     }
+    val jar: CookieJar = spec.iUser?.let { actingAs(accountJar, it) } ?: accountJar
 
     val callClient = client.newBuilder()
       .cookieJar(jar)

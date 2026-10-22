@@ -11,6 +11,7 @@ struct MetusRequestSpec {
   let headers: [(String, String)]
   let body: [String: Any]?
   let account: String?
+  let iUser: String?
   let timeoutMs: Double
   let followRedirects: Bool
   let responseType: String
@@ -46,6 +47,7 @@ struct MetusRequestSpec {
       id: id, url: url, method: method, headers: headers,
       body: o["body"] as? [String: Any],
       account: (o["account"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+      iUser: (o["iUser"] as? String).flatMap { $0.isEmpty || !$0.allSatisfy(\.isNumber) ? nil : $0 },
       timeoutMs: timeout,
       followRedirects: (o["followRedirects"] as? Bool) ?? true,
       responseType: responseType,
@@ -201,7 +203,12 @@ final class MetusHttpEngine: NSObject, URLSessionTaskDelegate, @unchecked Sendab
       req.timeoutInterval = spec.timeoutMs / 1000
       for (k, v) in headers { req.addValue(v, forHTTPHeaderField: k) }
       if let jar = jar {
-        let c = jar.header(for: url)
+        var c = jar.header(for: url)
+        // Hành động dưới danh nghĩa Page: thay i_user cho riêng request này
+        if let iu = spec.iUser, let host = url.host, host == "facebook.com" || host.hasSuffix(".facebook.com") {
+          let rest = c.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.hasPrefix("i_user=") && !$0.isEmpty }
+          c = (rest + ["i_user=\(iu)"]).joined(separator: "; ")
+        }
         if !c.isEmpty { req.setValue(c, forHTTPHeaderField: "Cookie") }
       }
 

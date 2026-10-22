@@ -1,14 +1,19 @@
 import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
+import { Platform } from 'react-native';
 
 /**
  * Đăng nhập Google native → Firebase idToken (cùng project Firebase với metus-few:
- * metus-e26f7). Backend `/auth/login/social` nhận Firebase idToken, nên idToken của
+ * metus-3875b). Backend `/auth/login/social` nhận Firebase idToken, nên idToken của
  * Google được đổi qua Identity Toolkit REST (thay cho signInWithPopup trên web).
  */
-const FIREBASE_API_KEY = 'AIzaSyAXE5Ime6-xZz_FzzKN0hObG9O1to6vQng';
+/** Web API key của project Firebase — đặt trong .env (không commit), xem .env.example. */
+const FIREBASE_API_KEY = process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? '';
 
 /** OAuth "Web client" của project Firebase (Firebase console → Authentication → Google). */
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+
+/** OAuth "iOS client" (CLIENT_ID trong GoogleService-Info.plist) — chỉ cần cho bản iOS. */
+const IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
 
 export class GoogleCancelled extends Error {
   constructor() {
@@ -20,8 +25,10 @@ let configured = false;
 
 export async function getGoogleFirebaseIdToken(): Promise<string> {
   if (!WEB_CLIENT_ID) throw new Error('Chưa cấu hình EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
+  if (!FIREBASE_API_KEY) throw new Error('Chưa cấu hình EXPO_PUBLIC_FIREBASE_API_KEY');
   if (!configured) {
-    GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
+    if (Platform.OS === 'ios' && !IOS_CLIENT_ID) throw new Error('Chưa cấu hình EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID');
+    GoogleSignin.configure({ webClientId: WEB_CLIENT_ID, iosClientId: IOS_CLIENT_ID || undefined });
     configured = true;
   }
 

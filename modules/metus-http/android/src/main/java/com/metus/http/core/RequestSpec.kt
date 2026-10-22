@@ -48,6 +48,8 @@ data class RequestSpec(
   val body: BodySpec,
   /** Id tài khoản (cookie jar) — null = không gửi cookie nào (credentials "omit"). */
   val account: String?,
+  /** Id Page → gắn cookie i_user cho riêng request này (không lưu vào jar). */
+  val iUser: String?,
   val timeoutMs: Long,
   val followRedirects: Boolean,
   /** "text" | "base64" | "file" */
@@ -80,6 +82,7 @@ data class RequestSpec(
         headers = parseHeaders(o.optJSONArray("headers")),
         body = parseBody(o.optJSONObject("body")),
         account = o.optString("account").ifEmpty { null },
+        iUser = o.optString("iUser").ifEmpty { null }?.also { if (!it.all(Char::isDigit)) bad("iUser không hợp lệ") },
         timeoutMs = timeout,
         followRedirects = o.optBoolean("followRedirects", true),
         responseType = responseType,

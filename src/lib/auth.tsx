@@ -1,6 +1,10 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AppState } from 'react-native';
 
-import { Api, type MetusUser } from './api';
+import { showDialog } from '@/components/Dialog';
+
+import { Api, onUnauthorized, type MetusUser } from './api';
+import { tr } from './i18n';
 import { GoogleCancelled, getGoogleFirebaseIdToken } from './googleAuth';
 import * as storage from './storage';
 
@@ -19,6 +23,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<MetusUser | null>(() =>
     storage.get(storage.StorageKey.ACCESS_TOKEN) ? (storage.get<MetusUser>(storage.StorageKey.USER) ?? {}) : null,
   );
+
+  // Token hết hạn (API trả 401) → đăng xuất + báo người dùng
+  const loggedIn = user !== null;
+  const loggedInRef = useRef(loggedIn);
+  loggedInRef.current = loggedIn;
+  useEffect(
+    () =>
+      onUnauthorized(() => {
+        if (!loggedInRef.current) return;
+        loggedInRef.current = false;
+        setUser(null);
+        showDialog(tr('auth.sessionExpired'), tr('auth.sessionExpiredDesc'));
+      }),
+    [],
+  );
+
+  // Kiểm tra token khi mở app và mỗi lần quay lại app (401 sẽ tự đăng xuất ở trên)
+  useEffect(() => {
+    if (!loggedIn) return;
+    const check = () => {
+      if (!storage.get(storage.StorageKey.ACCESS_TOKEN)) return;
+      Api.me()
+        .then((u) => storage.set(storage.StorageKey.USER, u))
+        .catch(() => {});
+    };
+    check();
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && check());
+    return () => sub.remove();
+  }, [loggedIn]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { accessToken, user: u } = await Api.login(email, password);

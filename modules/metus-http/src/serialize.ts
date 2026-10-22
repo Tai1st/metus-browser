@@ -121,6 +121,7 @@ export function toNativeSpec(id: string, req: MetusHttpRequest, account: string 
     headers: Object.entries(headers),
     body: serializeBody(req.body, headers),
     account,
+    iUser: account && req.iUser ? req.iUser : undefined,
     timeoutMs: req.timeout ?? 30_000,
     followRedirects: req.followRedirects ?? true,
     responseType: rt === 'arraybuffer' ? 'base64' : rt === 'file' ? 'file' : 'text',

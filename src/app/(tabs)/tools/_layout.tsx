@@ -39,6 +39,7 @@ export default function ToolsStackLayout() {
       <Stack.Screen name="fb-one-card-video-carousel" options={{ title: t('stack.oneCardVideo') }} />
       <Stack.Screen name="fb-one-card-picture-carousel" options={{ title: t('stack.oneCardPicture') }} />
       <Stack.Screen name="post-a-card" options={{ title: t('stack.fakeAlbum') }} />
+      <Stack.Screen name="auto-comment-fb-group" options={{ title: t('stack.autoComment') }} />
     </Stack>
   );
 }

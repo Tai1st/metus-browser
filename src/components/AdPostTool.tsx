@@ -31,7 +31,7 @@ const defaultCard = (): CardData => ({ picture: '', name: 'Like Page 👉👉', 
 const ctaLabel = (v: string) => CTA_ACTIONS.find((a) => a.value === v)?.label ?? v;
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
-const fmtDateTime = (d: Date) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+export const fmtDateTime = (d: Date) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 const WEEKDAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const QUICK_TIMES = ['09:00', '12:00', '14:30', '17:00', '20:00'];
@@ -55,7 +55,7 @@ function Stepper({ label, value, max, onChange, c }: { label: string; value: num
 }
 
 /** Modal chọn ngày giờ (lịch tháng + shortcuts + giờ) — giống metus-few. */
-function DateTimePickerModal({ visible, value, onClose, onConfirm }: { visible: boolean; value: Date | null; onClose: () => void; onConfirm: (d: Date) => void }) {
+export function DateTimePickerModal({ visible, value, onClose, onConfirm }: { visible: boolean; value: Date | null; onClose: () => void; onConfirm: (d: Date) => void }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const [sel, setSel] = useState<Date>(value ?? new Date(Date.now() + 40 * 60000));
@@ -167,7 +167,7 @@ function DateTimePickerModal({ visible, value, onClose, onConfirm }: { visible: 
 }
 
 // Hàng chọn kiểu dropdown (nhãn + avatar + tên + mũi tên) giống metus-few.
-function SelectorRow({ label, avatar, text, placeholder, onPress }: { label: string; avatar?: string; text?: string; placeholder: string; onPress: () => void }) {
+export function SelectorRow({ label, avatar, text, placeholder, onPress }: { label: string; avatar?: string; text?: string; placeholder: string; onPress: () => void }) {
   const c = useColors();
   return (
     <View style={{ gap: 7 }}>
@@ -183,7 +183,7 @@ function SelectorRow({ label, avatar, text, placeholder, onPress }: { label: str
 }
 
 // Modal chọn 1 hoặc nhiều mục.
-function PickerModal<T>({ visible, title, onClose, items, keyOf, labelOf, avatarOf, selectedKeys, onToggle, multi }: {
+export function PickerModal<T>({ visible, title, onClose, items, keyOf, labelOf, avatarOf, selectedKeys, onToggle, multi }: {
   visible: boolean; title: string; onClose: () => void; items: T[]; keyOf: (t: T) => string; labelOf: (t: T) => string; avatarOf?: (t: T) => string | undefined; selectedKeys: string[]; onToggle: (t: T) => void; multi?: boolean;
 }) {
   const c = useColors();

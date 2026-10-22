@@ -3,6 +3,7 @@ import { Metus, MetusHttpError } from '@metus/http';
 
 import { Config } from './config';
 import { getMachineCode } from './device';
+import { tr } from './i18n';
 import * as storage from './storage';
 
 export class ApiError extends Error {
@@ -10,6 +11,13 @@ export class ApiError extends Error {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+/** Báo khi token hết hạn / không hợp lệ (backend trả 401 cho request có gửi token). */
+const unauthorizedListeners = new Set<() => void>();
+export function onUnauthorized(fn: () => void): () => void {
+  unauthorizedListeners.add(fn);
+  return () => unauthorizedListeners.delete(fn);
 }
 
 async function call<T>(method: 'GET' | 'POST' | 'PATCH', path: string, body?: unknown): Promise<T> {
@@ -26,6 +34,13 @@ async function call<T>(method: 'GET' | 'POST' | 'PATCH', path: string, body?: un
     responseType: 'auto',
     timeout: 60_000,
   });
+  if (res.status === 401 && token) {
+    // Token hết hạn → xoá phiên, AuthProvider tự đưa về màn đăng nhập
+    storage.clear(storage.StorageKey.ACCESS_TOKEN);
+    storage.clear(storage.StorageKey.USER);
+    unauthorizedListeners.forEach((fn) => fn());
+    throw new ApiError(401, tr('auth.sessionExpired'));
+  }
   if (res.status < 200 || res.status >= 300) {
     const msg = typeof res.data === 'object' && res.data?.message ? String(res.data.message) : `HTTP ${res.status}`;
     throw new ApiError(res.status, msg);

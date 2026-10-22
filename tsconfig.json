@@ -9,6 +9,9 @@
       "@/assets/*": [
         "./assets/*"
       ],
+      "@metus/background": [
+        "./modules/metus-background"
+      ],
       "@metus/http": [
         "./modules/metus-http"
       ]

@@ -30,7 +30,8 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files (giá trị thật để trong .env, mẫu ở .env.example)
+.env
 .env*.local
 
 # typescript
@@ -48,3 +49,7 @@ modules/**/android/.gradle/
 modules/**/android/.cxx/
 modules/**/ios/build/
 local.properties
+
+# Cấu hình Firebase tải về (chứa API key) — không commit
+google-services.json
+GoogleService-Info.plist

@@ -88,6 +88,8 @@ export interface AxiosLikeConfig {
   timeout?: number;
   signal?: AbortSignal;
   onUploadProgress?: (e: { loaded: number; total: number }) => void;
+  /** Hành động dưới danh nghĩa Page (cookie i_user=<pageId> cho riêng request). */
+  iUser?: string;
 }
 
 export interface AxiosLikeResponse<T = any> {
@@ -116,6 +118,7 @@ async function axiosRequest<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATC
     signal: config.signal,
     responseType: config.responseType === 'arraybuffer' ? 'arraybuffer' : 'text',
     credentials: 'include',
+    iUser: config.iUser,
     onUploadProgress: config.onUploadProgress
       ? (sent, total) => config.onUploadProgress!({ loaded: sent, total })
       : undefined,
