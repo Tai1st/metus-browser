@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Application from 'expo-application';
 import { router, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
@@ -108,7 +109,7 @@ export default function AccountScreen() {
       <SettingRow icon="document-text-outline" title={t('account.terms')} onPress={soon(t('account.terms'))} />
       <SettingRow icon="log-out-outline" title={t('account.logout')} danger onPress={confirmLogout} />
 
-      <Label>Metus · {t('common.version')} 1.0.0</Label>
+      <Label>Metus · {t('common.version')} {Application.nativeApplicationVersion ?? ''}</Label>
 
       <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />
       <ThemeSheet visible={themeOpen} onClose={() => setThemeOpen(false)} />

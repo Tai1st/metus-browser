@@ -22,6 +22,36 @@ const parse = (data: unknown): any => {
 const rnd = (len: number) => Array.from({ length: len }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 62)]).join('');
 const mutationId = () => String(1 + Math.floor(Math.random() * 18));
 const TEXT = { responseType: 'text' as const, transformResponse: (r: unknown) => r };
+const BIZ_HEADERS = { origin: 'https://business.facebook.com', referer: 'https://business.facebook.com/latest' };
+
+/**
+ * Tên máy chủ upload video (resumable_service_name, vd "rupload") do Facebook cấp qua
+ * init_upload. metus-few ghi cứng "rupload-hkg4-2.up.facebook.com" — host này đã không
+ * còn tồn tại (lỗi phân giải DNS), nên hỏi Facebook thay vì đoán.
+ */
+async function getUploadHost(dtsg: string, fbId: string, pageId: string): Promise<string> {
+  try {
+    const form = new FormData();
+    form.append('fb_dtsg', dtsg);
+    form.append('__user', fbId);
+    form.append('__a', '1');
+    const { data } = await instance.post<string>('https://business.facebook.com/video/composer/init_upload', form, {
+      ...TEXT,
+      headers: BIZ_HEADERS,
+      params: {
+        target_id: pageId,
+        composer_entry_point_ref: 'biz_web_home_stories',
+        video_publisher_action_source: JSON.stringify({ product: 'business_suite', feature: 'stories_composer', entry_point: 'biz_web_home_stories' }),
+        av: pageId,
+      },
+    });
+    const name = parse(data)?.payload?.videoUploader?.[0]?.resumable_service_name;
+    if (typeof name === 'string' && /^[a-z0-9.-]+$/i.test(name)) return `${name}.facebook.com`;
+  } catch {
+    // dùng mặc định bên dưới
+  }
+  return 'rupload.facebook.com';
+}
 
 /** Upload ảnh Story → photoID. */
 export async function uploadStoryPhoto(dtsg: string, pageId: string, file: LocalFile): Promise<string> {
@@ -55,19 +85,21 @@ export async function uploadStoryVideo(dtsg: string, fbId: string, pageId: strin
     has_file_been_replaced: 'false', spherical: 'false', supports_file_api: 'true', supports_chunking: 'true', __a: '1', __user: fbId, fb_dtsg: dtsg,
   };
   Object.entries(fields).forEach(([k, v]) => init.append(k, v));
-  const { data: initData } = await instance.post<string>(`https://business.facebook.com/ajax/video/upload/requests/start/?av=${pageId}&__a=1`, init, TEXT);
+  const { data: initData } = await instance.post<string>(`https://business.facebook.com/ajax/video/upload/requests/start/?av=${pageId}&__a=1`, init, { ...TEXT, headers: BIZ_HEADERS });
   const videoId = parse(initData)?.payload?.video_id;
   if (!videoId) throw new Error(tr('gp.err.videoId'));
 
-  // B2: gửi nội dung file
+  // B2: gửi nội dung file lên máy chủ upload do Facebook chỉ định
+  const host = await getUploadHost(dtsg, fbId, pageId);
   const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.MD5, String(videoId));
   const type = file.type ?? 'video/mp4';
   const { data: up } = await instance.post<string>(
-    `https://rupload-hkg4-2.up.facebook.com/fb_video/${hash}-0-${size}?__user=${fbId}&__a=1&fb_dtsg=${encodeURIComponent(dtsg)}`,
+    `https://${host}/fb_video/${hash}-0-${size}?__user=${fbId}&__a=1&fb_dtsg=${encodeURIComponent(dtsg)}`,
     fileBody(file.uri, { type }),
     {
       ...TEXT,
       headers: {
+        ...BIZ_HEADERS,
         accept: '*/*', 'content-type': type, 'x-entity-length': String(size), 'x-entity-name': `${pageId}_${videoId}.mp4`, 'x-entity-type': type,
         offset: '0', start_offset: '0', end_offset: String(size), product_media_id: String(videoId),
       },
@@ -85,7 +117,7 @@ export async function uploadStoryVideo(dtsg: string, fbId: string, pageId: strin
     composer_entry_point_ref: 'biz_web_content_manager_published_posts', has_file_been_replaced: 'false', supports_chunking: 'true',
     partition_start_offset: '0', partition_end_offset: String(size), __a: '1', __user: fbId, fb_dtsg: dtsg,
   });
-  await instance.post(`https://business.facebook.com/ajax/video/upload/requests/receive/?${q.toString()}`, confirm, TEXT);
+  await instance.post(`https://business.facebook.com/ajax/video/upload/requests/receive/?${q.toString()}`, confirm, { ...TEXT, headers: BIZ_HEADERS });
 
   // B4: encode
   const enc = new FormData();
@@ -96,7 +128,7 @@ export async function uploadStoryVideo(dtsg: string, fbId: string, pageId: strin
   enc.append('variables', JSON.stringify({ input: { client_mutation_id: mutationId(), video_id: String(videoId), actor_id: pageId, source: 'biz_composer' } }));
   enc.append('server_timestamps', 'true');
   enc.append('doc_id', '6230865220357002');
-  await instance.post('https://business.facebook.com/api/graphql', enc, TEXT);
+  await instance.post('https://business.facebook.com/api/graphql', enc, { ...TEXT, headers: BIZ_HEADERS });
   return String(videoId);
 }
 
@@ -129,7 +161,7 @@ export async function publishStory(dtsg: string, fbId: string, pageId: string, a
     variables: JSON.stringify(variables), server_timestamps: 'true', doc_id: '7824581757552022',
   };
   Object.entries(fields).forEach(([k, v]) => form.append(k, v));
-  const { data } = await instance.post<string>('https://business.facebook.com/api/graphql', form, TEXT);
+  const { data } = await instance.post<string>('https://business.facebook.com/api/graphql', form, { ...TEXT, headers: BIZ_HEADERS });
   const json = parse(data);
   if (!json?.data?.xfamily_content_create?.content_creation_flags) {
     throw new Error(json?.errors?.[0]?.message ?? tr('stories.err.publish'));
