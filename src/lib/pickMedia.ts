@@ -75,22 +75,32 @@ async function fromFiles(kind: MediaKind, multiple: boolean): Promise<PickedMedi
   }));
 }
 
+// iOS dùng chung 1 trạng thái "đang chọn" cho toàn app (image-picker/document-picker);
+// gọi chồng lần 2 trước khi lần 1 xong sẽ văng PickingInProgressException. Khoá lại để luôn tuần tự.
+let picking = false;
+
 /** Chọn ảnh/video: hỏi nguồn rồi mở trình chọn tương ứng. Trả về [] nếu hủy. */
 export async function pickMedia(kind: MediaKind, multiple = false): Promise<PickedMedia[]> {
-  const src = await askSource();
-  if (!src) return [];
+  if (picking) return [];
+  picking = true;
   try {
-    const picked = src === 'library' ? await fromLibrary(kind, multiple) : await fromFiles(kind, multiple);
-    // Một số máy không trả dung lượng → đọc từ file (upload video cần biết size)
-    return Promise.all(
-      picked.map(async (m) => {
-        if (m.size) return m;
-        const info = await FS.getInfoAsync(m.uri).catch(() => null);
-        return info?.exists ? { ...m, size: info.size } : m;
-      }),
-    );
-  } catch (e) {
-    showDialog(tr('media.pickErr'), e instanceof Error ? e.message : String(e));
-    return [];
+    const src = await askSource();
+    if (!src) return [];
+    try {
+      const picked = src === 'library' ? await fromLibrary(kind, multiple) : await fromFiles(kind, multiple);
+      // Một số máy không trả dung lượng → đọc từ file (upload video cần biết size)
+      return await Promise.all(
+        picked.map(async (m) => {
+          if (m.size) return m;
+          const info = await FS.getInfoAsync(m.uri).catch(() => null);
+          return info?.exists ? { ...m, size: info.size } : m;
+        }),
+      );
+    } catch (e) {
+      showDialog(tr('media.pickErr'), e instanceof Error ? e.message : String(e));
+      return [];
+    }
+  } finally {
+    picking = false;
   }
 }
