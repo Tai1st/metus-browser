@@ -40,6 +40,8 @@ export default function ToolsStackLayout() {
       <Stack.Screen name="fb-one-card-picture-carousel" options={{ title: t('stack.oneCardPicture') }} />
       <Stack.Screen name="post-a-card" options={{ title: t('stack.fakeAlbum') }} />
       <Stack.Screen name="auto-comment-fb-group" options={{ title: t('stack.autoComment') }} />
+      <Stack.Screen name="up-to-reelsv2" options={{ title: t('stack.reels') }} />
+      <Stack.Screen name="up-to-stories" options={{ title: t('stack.stories') }} />
     </Stack>
   );
 }

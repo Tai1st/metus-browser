@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as DocumentPicker from 'expo-document-picker';
+import { pickMedia as chooseMedia } from '@/lib/pickMedia';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -454,8 +454,8 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
 
   const uploadToLibrary = async () => {
     if (!adAccount) return;
-    const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: true, type: 'image/*' });
-    if (r.canceled || !r.assets.length) return;
+    const r = { assets: await chooseMedia('image', true) };
+    if (!r.assets.length) return;
     setLibUploading(true);
     setError('');
     try {
@@ -482,8 +482,8 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
 
   // Album giả: chọn ảnh từ máy cho ô i (chọn nhiều → điền lần lượt các ô tiếp theo).
   const pickAlbumSlot = async (i: number) => {
-    const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: true, type: 'image/*' });
-    if (r.canceled || !r.assets.length) return;
+    const r = { assets: await chooseMedia('image', true) };
+    if (!r.assets.length) return;
     setAlbumImages((prev) => {
       const next = [...prev];
       r.assets.slice(0, albumSlots - i).forEach((a, k) => (next[i + k] = a.uri));
@@ -533,9 +533,8 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
   const pickMedia = async (i: number) => {
     if (!adAccount) return;
     setSelectedCard(i);
-    const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: false, type: imageOnly ? 'image/*' : ['image/*', 'video/*'] });
-    if (r.canceled || !r.assets[0]) return;
-    const a = r.assets[0];
+    const [a] = await chooseMedia(imageOnly ? 'image' : 'mixed');
+    if (!a) return;
     const media = { uri: a.uri, name: a.name, mimeType: a.mimeType ?? undefined };
     setUploading(i);
     if (!(a.mimeType ?? "").startsWith("video/")) patchCard(i, { preview: a.uri });

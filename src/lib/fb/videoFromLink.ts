@@ -39,7 +39,7 @@ async function fetchTiktokDownloadUrl(videoUrl: string): Promise<string> {
   return url;
 }
 
-async function fetchCapcutDownloadUrl(videoUrl: string): Promise<string> {
+export async function fetchCapcutDownloadUrl(videoUrl: string): Promise<string> {
   const r = await fetch('https://3bic.com/api/download', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -72,7 +72,7 @@ async function resolveFacebookVideoId(url: string): Promise<string | null> {
   }
 }
 
-async function fetchFacebookDownloadUrl(url: string, asyncToken: string, fbId: string): Promise<string> {
+export async function fetchFacebookDownloadUrl(url: string, asyncToken: string, fbId: string): Promise<string> {
   const videoId = await resolveFacebookVideoId(url);
   if (!videoId) throw new Error('Không tìm thấy video ID Facebook');
   const raw = await exFetch<string>(

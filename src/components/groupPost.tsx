@@ -17,6 +17,7 @@ import { showDialog } from '@/components/Dialog';
 import { Body, Field, Label, Row, radius, shadow, useColors } from '@/components/ui';
 import { getTextFormatPresets, type LocalFile, type TextFormatPreset, type TextFormatPresetData } from '@/lib/fb/Group';
 import { useT } from '@/lib/i18n';
+import { pickMedia } from '@/lib/pickMedia';
 
 // ───────────────────────────── Kiểu dữ liệu ─────────────────────────────
 
@@ -429,9 +430,9 @@ function ScenarioEditModal({ draft, setDraft, onSave, onCancel, dtsg, fbId, page
             ))}
             <Pressable
               onPress={async () => {
-                const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: true, type: 'image/*' });
-                if (r.canceled) return;
-                patch({ photos: [...draft.photos, ...r.assets.map((a) => ({ uri: a.uri, name: a.name, type: a.mimeType ?? 'image/jpeg', size: a.size }))], video: null });
+                const picked = await pickMedia('image', true);
+                if (!picked.length) return;
+                patch({ photos: [...draft.photos, ...picked.map((a) => ({ uri: a.uri, name: a.name, type: a.mimeType ?? 'image/jpeg', size: a.size }))], video: null });
               }}
               style={{ width: 58, height: 58, borderRadius: 6, borderWidth: 2, borderStyle: 'dashed', borderColor: c.faint, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="add" size={22} color={c.faint} />
@@ -446,9 +447,8 @@ function ScenarioEditModal({ draft, setDraft, onSave, onCancel, dtsg, fbId, page
         ) : (
           <Pressable
             onPress={async () => {
-              const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, type: 'video/*' });
-              if (r.canceled || !r.assets[0]) return;
-              const a = r.assets[0];
+              const [a] = await pickMedia('video');
+              if (!a) return;
               patch({ video: { uri: a.uri, name: a.name, type: a.mimeType ?? 'video/mp4', size: a.size }, photos: [] });
             }}
             style={{ paddingVertical: 12, borderRadius: 8, borderWidth: 2, borderStyle: 'dashed', borderColor: c.faint, alignItems: 'center' }}>
@@ -539,5 +539,22 @@ export function TickBox({ label, value, disabled, onChange, onBlocked }: { label
       <Ionicons name={value ? 'checkbox' : 'square-outline'} size={17} color={value ? c.accent : c.faint} />
       <Body size={13} color={c.muted}>{label}</Body>
     </Pressable>
+  );
+}
+
+/** Ô số có nút −/+ (NumberStepper của metus-few). */
+export function StepField({ label, value, onChange, min = 0, step = 1, disabled }: { label: string; value: number; onChange: (v: number) => void; min?: number; step?: number; disabled?: boolean }) {
+  const c = useColors();
+  return (
+    <View style={{ gap: 4 }}>
+      <Text style={{ fontSize: 11.5, fontWeight: '600', color: c.muted }} numberOfLines={1}>{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: c.inputBorder, borderRadius: radius.sm, backgroundColor: c.input, opacity: disabled ? 0.6 : 1 }}>
+        <Pressable disabled={disabled} onPress={() => onChange(Math.max(min, +(value - step).toFixed(2)))} style={{ paddingHorizontal: 8, paddingVertical: 8 }}><Ionicons name="remove" size={15} color={c.text} /></Pressable>
+        <TextInput value={String(value)} editable={!disabled} keyboardType="decimal-pad"
+          onChangeText={(v) => onChange(Math.max(min, Number(v.replace(/[^\d.]/g, '')) || 0))}
+          style={{ flex: 1, textAlign: 'center', fontWeight: '700', color: c.text, paddingVertical: 6 }} />
+        <Pressable disabled={disabled} onPress={() => onChange(+(value + step).toFixed(2))} style={{ paddingHorizontal: 8, paddingVertical: 8 }}><Ionicons name="add" size={15} color={c.text} /></Pressable>
+      </View>
+    </View>
   );
 }

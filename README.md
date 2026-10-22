@@ -20,12 +20,20 @@ Request đi thẳng từ máy (OkHttp trên Android, URLSession trên iOS) nên:
 npm install
 ```
 
-Tạo `.env` (đã có sẵn mẫu):
+Tạo `.env` từ file mẫu rồi điền giá trị (`.env` **không** commit lên git):
 
+```bash
+cp .env.example .env
 ```
-EXPO_PUBLIC_BACKEND_API_URL=https://api.metus.vn/api
-EXPO_PUBLIC_APP_URL=https://metus.vn
-```
+
+| Biến | Ý nghĩa |
+|---|---|
+| `EXPO_PUBLIC_BACKEND_API_URL`, `EXPO_PUBLIC_APP_URL` | Địa chỉ backend / web Metus |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | OAuth Web client của Firebase project (đăng nhập Google) |
+| `EXPO_PUBLIC_FIREBASE_API_KEY` | Web API key của Firebase project |
+| `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | OAuth iOS client (chỉ cần khi build iOS) |
+
+Sau khi sửa `.env` phải khởi động lại Metro (`npx expo start --clear`) vì biến `EXPO_PUBLIC_*` chỉ được đọc lúc khởi động.
 
 ## Chạy dev (development build — BẮT BUỘC, không dùng Expo Go)
 
@@ -117,4 +125,3 @@ const list = await Metus.accounts.list();   // [{ id, hasSession, cookieCount }]
 - Port tiếp các tool còn lại của metus-few (page/profile, upload reel/story…).
 - Màn `metus://api-client` đã có sẵn trong app (tab API Client).
 - iOS: kiểm chứng proxy (cần iOS 17+) và upload nền cho video lớn.
-```

@@ -35,7 +35,15 @@
           "backgroundColor": "#06100A"
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Metus cần truy cập thư viện ảnh để bạn chọn ảnh/video đăng bài.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

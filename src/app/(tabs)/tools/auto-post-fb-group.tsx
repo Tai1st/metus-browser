@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
-import * as DocumentPicker from 'expo-document-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
@@ -32,6 +31,7 @@ import {
 import { describeError } from '@/lib/api';
 import { spinContent } from '@/lib/spin';
 import { useT } from '@/lib/i18n';
+import { pickMedia } from '@/lib/pickMedia';
 import * as storage from '@/lib/storage';
 import * as bg from '@metus/background';
 
@@ -116,9 +116,7 @@ const ATTACH_KEY: Record<Attach, string> = { text: 'gp.attachText', photos: 'gp.
 // Chờ bằng Handler native (vẫn chạy khi app ở nền / tắt màn hình)
 const sleep = (ms: number) => bg.sleep(ms);
 async function pickImages(): Promise<LocalFile[]> {
-  const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: true, type: 'image/*' });
-  if (r.canceled) return [];
-  return r.assets.map((a) => ({ uri: a.uri, name: a.name, type: a.mimeType ?? 'image/jpeg', size: a.size }));
+  return (await pickMedia('image', true)).map((a) => ({ uri: a.uri, name: a.name, type: a.mimeType ?? 'image/jpeg', size: a.size }));
 }
 
 // ───────────────────────────── Ảnh đính kèm ─────────────────────────────
@@ -530,11 +528,8 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
         ) : (
           <Pressable disabled={running}
             onPress={async () => {
-              const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, type: 'video/*' });
-              if (!r.canceled && r.assets[0]) {
-                const a = r.assets[0];
-                set('video', { uri: a.uri, name: a.name, type: a.mimeType ?? 'video/mp4', size: a.size });
-              }
+              const [a] = await pickMedia('video');
+              if (a) set('video', { uri: a.uri, name: a.name, type: a.mimeType ?? 'video/mp4', size: a.size });
             }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.accent, backgroundColor: c.accentSoft }}>
             <Ionicons name="videocam" size={24} color={c.accent} />
@@ -589,11 +584,8 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
             ) : (
               <Pressable disabled={running}
                 onPress={async () => {
-                  const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, type: 'image/*' });
-                  if (!r.canceled && r.assets[0]) {
-                    const a = r.assets[0];
-                    set('autoCommentPhoto', { uri: a.uri, name: a.name, type: a.mimeType ?? 'image/jpeg', size: a.size });
-                  }
+                  const [a] = await pickMedia('image');
+                  if (a) set('autoCommentPhoto', { uri: a.uri, name: a.name, type: a.mimeType ?? 'image/jpeg', size: a.size });
                 }}
                 style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.sm, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.accent, backgroundColor: c.accentSoft }}>
                 <Ionicons name="image-outline" size={16} color={c.accent} />

@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
-import * as DocumentPicker from 'expo-document-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
@@ -8,7 +7,7 @@ import { fmtDateTime } from '@/components/AdPostTool';
 import { showDialog } from '@/components/Dialog';
 import { AdvancedCycle, fmtClock, fmtCycle, nextCustomRun } from '@/components/cycle';
 import { GroupPicker, parseGroupId } from '@/components/groupPicker';
-import { CenterModal, ModalFooter, RandomButtons, SectionTitle, SmallBtn, TickBox, exportJson, importJson } from '@/components/groupPost';
+import { CenterModal, ModalFooter, RandomButtons, SectionTitle, SmallBtn, StepField, TickBox, exportJson, importJson } from '@/components/groupPost';
 import { ToolGate } from '@/components/tool';
 import { Badge, Body, Card, Field, Label, Row, Screen, radius, shadow, useColors } from '@/components/ui';
 import { describeError, type MetusUser } from '@/lib/api';
@@ -16,6 +15,7 @@ import { joinGroupRequest } from '@/lib/fb/AutoJoinFbGroup';
 import { useAdsSession } from '@/lib/fb/adsSession';
 import { editComment, getGroupInfo, getGroupPostIds, getGroups, getLinkPreview, postComment, type CommentRange, type GroupItem, type LocalFile } from '@/lib/fb/Group';
 import { useT } from '@/lib/i18n';
+import { pickMedia } from '@/lib/pickMedia';
 import { spinContent } from '@/lib/spin';
 import * as storage from '@/lib/storage';
 import * as bg from '@metus/background';
@@ -110,10 +110,8 @@ function tagRange(input: string): CommentRange | null {
 }
 
 async function pickPhoto(): Promise<LocalFile | null> {
-  const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, type: 'image/*' });
-  if (r.canceled || !r.assets[0]) return null;
-  const a = r.assets[0];
-  return { uri: a.uri, name: a.name, type: a.mimeType ?? 'image/jpeg', size: a.size };
+  const [a] = await pickMedia('image');
+  return a ? { uri: a.uri, name: a.name, type: a.mimeType ?? 'image/jpeg', size: a.size } : null;
 }
 
 // ───────────────────────────── Ảnh bình luận ─────────────────────────────
@@ -668,23 +666,6 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
         </Card>
       ) : null}
     </>
-  );
-}
-
-/** Ô số có nút −/+ (NumberStepper của metus-few). */
-function StepField({ label, value, onChange, min = 0, disabled }: { label: string; value: number; onChange: (v: number) => void; min?: number; disabled?: boolean }) {
-  const c = useColors();
-  return (
-    <View style={{ gap: 4 }}>
-      <Text style={{ fontSize: 11.5, fontWeight: '600', color: c.muted }} numberOfLines={1}>{label}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: c.inputBorder, borderRadius: radius.sm, backgroundColor: c.input, opacity: disabled ? 0.6 : 1 }}>
-        <Pressable disabled={disabled} onPress={() => onChange(Math.max(min, value - 1))} style={{ paddingHorizontal: 8, paddingVertical: 8 }}><Ionicons name="remove" size={15} color={c.text} /></Pressable>
-        <TextInput value={String(value)} editable={!disabled} keyboardType="number-pad"
-          onChangeText={(v) => onChange(Math.max(min, Number(v.replace(/\D/g, '')) || 0))}
-          style={{ flex: 1, textAlign: 'center', fontWeight: '700', color: c.text, paddingVertical: 6 }} />
-        <Pressable disabled={disabled} onPress={() => onChange(value + 1)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}><Ionicons name="add" size={15} color={c.text} /></Pressable>
-      </View>
-    </View>
   );
 }
 
