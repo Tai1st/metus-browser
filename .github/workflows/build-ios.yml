@@ -103,19 +103,23 @@ jobs:
           fi
 
           test -f "$APP_PATH/Info.plist"
+          VERSION=$(node -p "require('./app.json').expo.version")
+          TIMESTAMP=$(date -u +%Y%m%d-%H%M)
+          echo "IPA_NAME=Metus-${VERSION}-${TIMESTAMP}-unsigned.ipa" >> "$GITHUB_ENV"
+
           rm -rf output
           mkdir -p output/Payload
           ditto "$APP_PATH" "output/Payload/$(basename "$APP_PATH")"
 
           cd output
-          zip -qry App-unsigned.ipa Payload
-          unzip -t App-unsigned.ipa
+          zip -qry "$IPA_NAME" Payload
+          unzip -t "$IPA_NAME"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: ios-unsigned-${{ github.run_number }}
-          path: output/App-unsigned.ipa
+          name: ${{ env.IPA_NAME }}
+          path: output/${{ env.IPA_NAME }}
           if-no-files-found: error
           retention-days: 7
 
