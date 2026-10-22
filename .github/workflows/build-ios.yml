@@ -105,7 +105,8 @@ jobs:
           test -f "$APP_PATH/Info.plist"
           VERSION=$(node -p "require('./app.json').expo.version")
           TIMESTAMP=$(date -u +%Y%m%d-%H%M)
-          echo "IPA_NAME=Metus-${VERSION}-${TIMESTAMP}-unsigned.ipa" >> "$GITHUB_ENV"
+          IPA_NAME="Metus-${VERSION}-${TIMESTAMP}-unsigned.ipa"
+          echo "IPA_NAME=${IPA_NAME}" >> "$GITHUB_ENV"
 
           rm -rf output
           mkdir -p output/Payload
