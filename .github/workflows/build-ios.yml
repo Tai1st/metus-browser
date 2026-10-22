@@ -1,0 +1,127 @@
+name: Build unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      workspace:
+        description: Xcode workspace path
+        required: true
+        default: ios/Metus.xcworkspace
+        type: string
+      scheme:
+        description: Xcode application scheme
+        required: true
+        default: Metus
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      CI: "1"
+      WORKSPACE: ${{ inputs.workspace }}
+      SCHEME: ${{ inputs.scheme }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Show tool versions
+        run: |
+          node --version
+          npm --version
+          xcodebuild -version
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Generate iOS project if missing
+        run: |
+          if [ ! -d ios ]; then
+            npx expo prebuild --platform ios --no-install
+          fi
+
+      - name: Install CocoaPods
+        run: |
+          if [ -f Gemfile ]; then
+            bundle install
+            cd ios
+            bundle exec pod install
+          else
+            cd ios
+            pod install
+          fi
+
+      - name: List available Xcode projects
+        run: |
+          find ios -maxdepth 1 -type d \( -name '*.xcworkspace' -o -name '*.xcodeproj' \)
+          test -d "$WORKSPACE"
+          xcodebuild -list -workspace "$WORKSPACE"
+
+      - name: Build Release for physical iOS devices
+        run: |
+          set -euo pipefail
+          mkdir -p logs
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee logs/xcodebuild.log
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          PRODUCTS="build/Build/Products/Release-iphoneos"
+          test -d "$PRODUCTS"
+          APP_PATH=$(find "$PRODUCTS" -maxdepth 1 -type d -name '*.app' -print -quit)
+
+          if [ -z "$APP_PATH" ]; then
+            echo 'No device .app found in Release-iphoneos.'
+            exit 1
+          fi
+
+          test -f "$APP_PATH/Info.plist"
+          rm -rf output
+          mkdir -p output/Payload
+          ditto "$APP_PATH" "output/Payload/$(basename "$APP_PATH")"
+
+          cd output
+          zip -qry App-unsigned.ipa Payload
+          unzip -t App-unsigned.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned-${{ github.run_number }}
+          path: output/App-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Xcode build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log-${{ github.run_number }}
+          path: logs/xcodebuild.log
+          if-no-files-found: ignore
+          retention-days: 7
