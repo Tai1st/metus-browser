@@ -19,9 +19,9 @@ export interface VersionInfo {
   notes?: string;
 }
 
-/** Link tải đúng theo nền tảng hiện tại; fallback apkUrl nếu thiếu iosUrl. */
+/** Link tải đúng theo nền tảng hiện tại; fallback apkUrl nếu thiếu iosUrl; rỗng nếu chưa có link nào. */
 export function downloadUrlFor(info: VersionInfo): string {
-  return Platform.OS === 'ios' ? (info.iosUrl || info.apkUrl) : info.apkUrl;
+  return (Platform.OS === 'ios' ? info.iosUrl || info.apkUrl : info.apkUrl) ?? '';
 }
 
 function compareVersions(a: string, b: string): number {
@@ -37,7 +37,7 @@ function compareVersions(a: string, b: string): number {
 export async function checkForUpdate(): Promise<{ hasUpdate: boolean; info: VersionInfo } | null> {
   try {
     const info = await Api.getSetting<VersionInfo>('APP_VERSION_METUS_BROWSER');
-    if (!info?.version || !info?.apkUrl) return null;
+    if (!info?.version) return null;
     const current = Application.nativeApplicationVersion ?? '0';
     return { hasUpdate: compareVersions(info.version, current) > 0, info };
   } catch {
@@ -47,9 +47,10 @@ export async function checkForUpdate(): Promise<{ hasUpdate: boolean; info: Vers
 
 /** Hiện hộp thoại "Đã có phiên bản mới" nếu có — dùng cho cả check tự động lúc mở app và nút bấm thủ công. */
 export function promptUpdate(t: TranslateFn, info: VersionInfo) {
+  const url = downloadUrlFor(info);
   showDialog(t('update.available', { version: info.version }), info.notes, [
     { text: t('update.later'), style: 'cancel' },
-    { text: t('update.download'), onPress: () => Linking.openURL(downloadUrlFor(info)) },
+    ...(url ? [{ text: t('update.download'), onPress: () => Linking.openURL(url) }] : []),
   ]);
 }
 
