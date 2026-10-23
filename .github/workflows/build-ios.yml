@@ -52,6 +52,21 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm ci
 
+      # .env bị gitignore nên CI không có — thiếu file này khiến các biến
+      # EXPO_PUBLIC_GOOGLE_*/EXPO_PUBLIC_FIREBASE_API_KEY rỗng lúc Metro bundle JS,
+      # làm đăng nhập Google luôn lỗi trên bản build từ GitHub. Giá trị dưới đây đều
+      # là OAuth client ID / Firebase Web API key công khai (không phải secret),
+      # ghi thẳng ở đây cho đồng bộ với .env dùng khi build local.
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          EXPO_PUBLIC_BACKEND_API_URL=https://api.metus.vn/api
+          EXPO_PUBLIC_APP_URL=https://metus.vn
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=420333529909-8acpsj3ibd5rep9kgbqgk5g03nql76ob.apps.googleusercontent.com
+          EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyCy_sEN7eueIrvp73CxFlZDPH2xX47C2Tg
+          EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=420333529909-a7ggckpu5r8k3l1qh8jjul0sck17kd9u.apps.googleusercontent.com
+          EOF
+
       - name: Generate iOS project if missing
         run: |
           if [ ! -d ios ]; then
