@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Modal, Platform, Pressable, Text, View } from 'react-native';
 
 import { radius, shadow, useColors } from '@/components/ui';
 
@@ -31,6 +31,10 @@ export function showDialog(title: string, message?: string, buttons?: DialogButt
 export function DialogHost() {
   const c = useColors();
   const [dialog, setDialog] = useState<DialogState | null>(null);
+  // iOS: nếu mở picker/modal gốc khác ngay trong onPress trong khi Modal này còn
+  // đang chạy animation đóng, hệ thống âm thầm bỏ qua lệnh present (không lỗi,
+  // không phản hồi). Hoãn onPress tới khi Modal thật sự đóng xong (onDismiss).
+  const pendingPress = useRef<(() => void | Promise<void>) | null>(null);
 
   useEffect(() => {
     setGlobal = setDialog;
@@ -41,8 +45,18 @@ export function DialogHost() {
 
   const close = () => setDialog(null);
   const press = (b: DialogButton) => {
+    if (Platform.OS === 'ios' && b.onPress) {
+      pendingPress.current = b.onPress;
+      close();
+      return;
+    }
     close();
     b.onPress?.();
+  };
+  const handleDismiss = () => {
+    const fn = pendingPress.current;
+    pendingPress.current = null;
+    fn?.();
   };
 
   const danger = dialog?.buttons.some((b) => b.style === 'destructive');
@@ -51,7 +65,7 @@ export function DialogHost() {
   const ordered = dialog ? [...dialog.buttons].sort((a, b) => (a.style === 'cancel' ? -1 : b.style === 'cancel' ? 1 : 0)) : [];
 
   return (
-    <Modal visible={!!dialog} transparent animationType="fade" statusBarTranslucent onRequestClose={() => (cancelBtn ? press(cancelBtn) : close())}>
+    <Modal visible={!!dialog} transparent animationType="fade" statusBarTranslucent onDismiss={handleDismiss} onRequestClose={() => (cancelBtn ? press(cancelBtn) : close())}>
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
         <Pressable
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
