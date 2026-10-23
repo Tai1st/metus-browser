@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Application from 'expo-application';
 import { router, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Linking, View } from 'react-native';
+import { View } from 'react-native';
 
 import { LanguageSheet } from '@/components/LanguageSheet';
 import { ThemeSheet } from '@/components/ThemeSheet';
@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { planInfo } from '@/lib/plan';
 import { LANGUAGES, useCurrency, useI18n } from '@/lib/i18n';
 import { useTheme } from '@/lib/theme';
-import { checkForUpdate, downloadUrlFor } from '@/lib/updateCheck';
+import { checkForUpdate, promptUpdate } from '@/lib/updateCheck';
 import { showDialog } from '@/components/Dialog';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -75,10 +75,7 @@ export default function AccountScreen() {
       showDialog(t('update.upToDate'));
       return;
     }
-    showDialog(t('update.available', { version: result.info.version }), result.info.notes, [
-      { text: t('update.later'), style: 'cancel' },
-      { text: t('update.download'), onPress: () => Linking.openURL(downloadUrlFor(result.info)) },
-    ]);
+    promptUpdate(t, result.info);
   };
 
   return (

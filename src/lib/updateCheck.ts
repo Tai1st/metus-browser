@@ -2,9 +2,11 @@
 // Metus (giống cơ chế BANK_INFO/GUIDE_LINK đã có), không cần build/deploy app để
 // đổi link tải, chỉ cần admin sửa giá trị setting trên server.
 import * as Application from 'expo-application';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 import { Api } from './api';
+import { showDialog } from '@/components/Dialog';
+import type { TranslateFn } from './i18n';
 
 export interface VersionInfo {
   /** Phiên bản mới nhất, dạng "1.0.2". */
@@ -41,4 +43,18 @@ export async function checkForUpdate(): Promise<{ hasUpdate: boolean; info: Vers
   } catch {
     return null;
   }
+}
+
+/** Hiện hộp thoại "Đã có phiên bản mới" nếu có — dùng cho cả check tự động lúc mở app và nút bấm thủ công. */
+export function promptUpdate(t: TranslateFn, info: VersionInfo) {
+  showDialog(t('update.available', { version: info.version }), info.notes, [
+    { text: t('update.later'), style: 'cancel' },
+    { text: t('update.download'), onPress: () => Linking.openURL(downloadUrlFor(info)) },
+  ]);
+}
+
+/** Kiểm tra im lặng lúc mở app — chỉ làm phiền người dùng khi thực sự có bản mới. */
+export async function checkForUpdateSilently(t: TranslateFn) {
+  const result = await checkForUpdate();
+  if (result?.hasUpdate) promptUpdate(t, result.info);
 }

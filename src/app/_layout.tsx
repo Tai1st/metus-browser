@@ -1,7 +1,7 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { configureNetwork } from '@/lib/config';
@@ -11,12 +11,23 @@ import { AdsSessionProvider } from '@/lib/fb/adsSession';
 import { I18nProvider, useI18n } from '@/lib/i18n';
 import { hydrateStorage } from '@/lib/storage';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/lib/theme';
+import { checkForUpdateSilently } from '@/lib/updateCheck';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootStack() {
   const { isLoggedIn } = useAuth();
   const { chosen, t } = useI18n();
+  const updateCheckedRef = useRef(false);
+
+  // Kiểm tra bản cập nhật mới mỗi lần mở app (sau khi đã đăng nhập, vì setting
+  // cần token) — im lặng nếu không có bản mới, chỉ phiền người dùng khi cần.
+  useEffect(() => {
+    if (!isLoggedIn || updateCheckedRef.current) return;
+    updateCheckedRef.current = true;
+    checkForUpdateSilently(t);
+  }, [isLoggedIn, t]);
+
   return (
     <Stack screenOptions={{ headerTitleStyle: { fontWeight: '800' }, headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal' }}>
       {/* Chọn ngôn ngữ trước khi dùng app (lần mở đầu tiên). */}
