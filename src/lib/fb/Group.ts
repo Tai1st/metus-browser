@@ -550,3 +550,126 @@ export async function createComment(p: { dtsg: string; fbId: string; postId: str
   const json = await graphql(form, p.pageId);
   return json?.data?.comment_create?.feedback_comment_edge?.node?.url ?? null;
 }
+
+// ───────────────────────── Bài viết chờ duyệt (admin/mod) ─────────────────────────
+
+export interface PendingPost {
+  id: string;
+  postId: string;
+  memberId: string;
+  memberName: string;
+  memberAvatar: string;
+  createdTime: number;
+  content: string;
+  attachment: { type: 'unavailable' | 'photo' | 'link'; title?: string } | null;
+}
+
+/** Trang bài chờ duyệt của nhóm (admin/mod); truyền `cursor` (từ lần trước) để lấy trang kế tiếp. */
+export async function getPendingPosts(dtsg: string, fbId: string, groupId: string, cursor?: string): Promise<{ posts: PendingPost[]; nextCursor?: string }> {
+  const form = new FormData();
+  form.append('fb_dtsg', dtsg);
+  form.append('av', fbId);
+  form.append('__user', fbId);
+  form.append('__a', '1');
+  const common = {
+    UFI2CommentsProvider_commentsKey: 'GroupsCometPendingPostsContent',
+    feedLocation: 'GROUP_PENDING',
+    privacySelectorRenderLocation: 'COMET_STREAM',
+    renderLocation: 'group_pending_queue',
+    scale: 1.5,
+    __relay_internal__pv__IsWorkUserrelayprovider: false,
+    __relay_internal__pv__IsMergQAPollsrelayprovider: false,
+    __relay_internal__pv__CometUFIReactionsEnableShortNamerelayprovider: false,
+    __relay_internal__pv__CometUFIIsRTAEnabledrelayprovider: false,
+    __relay_internal__pv__StoriesArmadilloReplyEnabledrelayprovider: true,
+    __relay_internal__pv__StoriesRingrelayprovider: false,
+  };
+  let docId: string;
+  let variables: any;
+  if (!cursor) {
+    docId = '6911028652338300';
+    variables = { ...common, afterTime: 0, authorID: null, beforeTime: 0, groupID: groupId, linkType: null, orderBy: null, postType: null, search: '', source: null, subgroupIDs: null, feedbackSource: 0 };
+  } else {
+    docId = '6496131333822411';
+    variables = {
+      ...common, bucketType: null, count: 3, cursor, displayCommentsContextEnableComment: null, displayCommentsContextIsAdPreview: null,
+      displayCommentsContextIsAggregatedShare: null, displayCommentsContextIsStorySet: null, displayCommentsFeedbackContext: null,
+      feedbackSource: 0, focusCommentID: null, hoistedPostID: null, pendingStoriesOrderBy: null, useDefaultActor: false, id: groupId,
+    };
+  }
+  form.append('variables', JSON.stringify(variables));
+  form.append('doc_id', docId);
+  const json = await graphql(form);
+  const groupData = cursor ? json?.data?.node : json?.data?.group;
+  const edges: any[] = groupData?.pending_posts_section_stories?.edges ?? [];
+  const nextCursor: string | undefined = groupData?.pending_posts_section_stories?.page_info?.end_cursor;
+
+  const posts: PendingPost[] = edges.map((edge) => {
+    const node = edge.node;
+    const actorPhotoActor = node?.comet_sections?.context_layout?.story?.comet_sections?.actor_photo?.story?.actors?.[0];
+    const contentActor = node?.comet_sections?.content?.story?.actors?.[0];
+    const actor = actorPhotoActor ?? contentActor ?? node?.actors?.[0];
+    let createdTime = 0;
+    const metadataList: any[] = node?.comet_sections?.context_layout?.story?.comet_sections?.metadata ?? [];
+    for (const meta of metadataList) {
+      if (meta.__typename === 'CometFeedStoryMinimizedTimestampStrategy') {
+        createdTime = meta.story?.creation_time ?? 0;
+        break;
+      }
+    }
+    const content = node?.comet_sections?.content?.story?.message?.text ?? '';
+    let attachment: PendingPost['attachment'] = null;
+    const attachments: any[] = node?.comet_sections?.content?.story?.attachments ?? [];
+    if (attachments.length) {
+      const typename = attachments[0].styles?.__typename;
+      if (typename === 'StoryAttachmentUnavailableStyleRenderer') {
+        attachment = { type: 'unavailable', title: attachments[0].styles.attachment?.title_with_entities?.text ?? '' };
+      } else if (typename === 'StoryAttachmentPhotoStyleRenderer') {
+        attachment = { type: 'photo' };
+      } else if (typename === 'StoryAttachmentLinkStyleRenderer') {
+        attachment = { type: 'link' };
+      }
+    }
+    return {
+      id: node.id,
+      postId: node.post_id,
+      memberId: actor?.id ?? '',
+      memberName: actor?.name ?? '',
+      memberAvatar: actor?.profile_picture?.uri ?? '',
+      createdTime,
+      content,
+      attachment,
+    };
+  });
+  return { posts, nextCursor };
+}
+
+/** Từ chối (xóa khỏi hàng chờ) một bài viết đang chờ duyệt. */
+export async function declinePendingPost(p: { dtsg: string; fbId: string; groupId: string; postId: string; memberId: string; adminNotes?: string }): Promise<void> {
+  const variables = {
+    currentSection: 'PENDING_POSTS',
+    input: {
+      action_source: 'GROUP_PENDING_POSTS',
+      admin_notes: p.adminNotes ?? 'metus.vn',
+      group_id: p.groupId,
+      selected_rules: [],
+      share_feedback: false,
+      story_id: p.postId,
+      actor_id: p.fbId,
+      client_mutation_id: '2',
+    },
+    memberID: p.memberId,
+    scale: 1,
+  };
+  const form = new FormData();
+  form.append('fb_dtsg', p.dtsg);
+  form.append('av', p.fbId);
+  form.append('__user', p.fbId);
+  form.append('__a', '1');
+  form.append('fb_api_caller_class', 'RelayModern');
+  form.append('fb_api_req_friendly_name', 'GroupsCometDeclinePendingStoryMutation');
+  form.append('variables', JSON.stringify(variables));
+  form.append('server_timestamps', 'true');
+  form.append('doc_id', '26192300283730906');
+  await graphql(form);
+}

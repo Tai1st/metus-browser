@@ -50,8 +50,10 @@ export const TOOLS: ToolItem[] = [
   { key: 'group-extractor', title: 'Quét nhóm theo UID', desc: 'Trích danh sách nhóm một tài khoản tham gia.', category: 'Phân tích', icon: 'download', route: '/tools/group-extractor-by-uid', en: { title: 'Scan groups by UID', desc: 'Extract the list of groups an account has joined.' } },
   { key: 'group-search-by-keyword', title: 'Tìm nhóm theo từ khóa', desc: 'Tìm & trích nhóm Facebook theo từ khóa.', category: 'Phân tích', icon: 'search', en: { title: 'Find groups by keyword', desc: 'Find & extract Facebook groups by keyword.' } },
   { key: 'post-extractor-by-uid', title: 'Quét bài đăng theo UID', desc: 'Trích tất cả bài đăng theo UID, xuất Excel.', category: 'Phân tích', icon: 'document-text', en: { title: 'Scan posts by UID', desc: 'Extract all posts by UID, export to Excel.' } },
-  { key: 'group-posts-analyze', title: 'Phân tích bài đăng nhóm', desc: 'Phân tích bài nhóm theo thời gian/loại nội dung.', category: 'Phân tích', icon: 'bar-chart', en: { title: 'Analyze group posts', desc: 'Analyze group posts by time / content type.' } },
-  { key: 'page-posts-analyze', title: 'Phân tích bài đăng trang', desc: 'Phân tích bài trang theo thời gian, xuất CSV.', category: 'Phân tích', icon: 'stats-chart', en: { title: 'Analyze page posts', desc: 'Analyze page posts by time, export CSV.' } },
+  // route "as Href": file vừa thêm, types chưa kịp tái sinh (expo-router typegen theo Metro watcher).
+  { key: 'group-posts-analyze', title: 'Phân tích bài đăng nhóm', desc: 'Phân tích bài nhóm theo thời gian/loại nội dung.', category: 'Phân tích', icon: 'bar-chart', route: '/tools/group-post-analysis' as Href, en: { title: 'Analyze group posts', desc: 'Analyze group posts by time / content type.' } },
+  // route "as Href": file vừa thêm, types chưa kịp tái sinh (expo-router typegen theo Metro watcher).
+  { key: 'page-posts-analyze', title: 'Phân tích bài đăng trang', desc: 'Phân tích bài trang theo thời gian, xuất CSV.', category: 'Phân tích', icon: 'stats-chart', route: '/tools/page-post-analysis' as Href, en: { title: 'Analyze page posts', desc: 'Analyze page posts by time, export CSV.' } },
   { key: 'friends', title: 'Quản lý bạn bè Facebook', desc: 'Xem, lọc, xuất và quản lý bạn bè nâng cao.', category: 'Phân tích', icon: 'people-circle', en: { title: 'Manage Facebook friends', desc: 'View, filter, export and manage friends.' } },
 
   // ----- Quản lý -----
@@ -60,7 +62,8 @@ export const TOOLS: ToolItem[] = [
   { key: 'page-posts-hide', title: 'Ẩn bài đăng Fanpage', desc: 'Ẩn bài đăng trên Fanpage siêu nhanh.', category: 'Quản lý', icon: 'eye-off', en: { title: 'Hide Fanpage posts', desc: 'Hide Fanpage posts super fast.' } },
   { key: 'page-posts-remover', title: 'Xóa bài đăng Fanpage', desc: 'Xóa bài đăng trên Fanpage siêu nhanh.', category: 'Quản lý', icon: 'trash', en: { title: 'Delete Fanpage posts', desc: 'Delete Fanpage posts super fast.' } },
   { key: 'group-posts-remover', title: 'Xóa bài đăng Group', desc: 'Xóa bài đăng trên Group siêu nhanh.', category: 'Quản lý', icon: 'trash', en: { title: 'Delete Group posts', desc: 'Delete Group posts super fast.' } },
-  { key: 'group-pending-post-remover', title: 'Xóa bài chờ duyệt Group', desc: 'Xóa bài chờ duyệt trên Group siêu nhanh.', category: 'Quản lý', icon: 'trash-bin', en: { title: 'Delete pending Group posts', desc: 'Delete pending Group posts super fast.' } },
+  // route "as Href": file vừa thêm, types chưa kịp tái sinh (expo-router typegen theo Metro watcher).
+  { key: 'group-pending-post-remover', title: 'Xóa bài chờ duyệt Group', desc: 'Xóa bài chờ duyệt trên Group siêu nhanh.', category: 'Quản lý', icon: 'trash-bin', route: '/tools/group-pending-post-remover' as Href, en: { title: 'Delete pending Group posts', desc: 'Delete pending Group posts super fast.' } },
   { key: 'group-posts-spam-remover', title: 'Xóa bài spam Group', desc: 'Xóa bài spam trong Group siêu nhanh.', category: 'Quản lý', icon: 'trash-bin', en: { title: 'Delete spam Group posts', desc: 'Delete spam posts in Groups super fast.' } },
 ];
 

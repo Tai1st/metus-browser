@@ -44,6 +44,9 @@ export default function ToolsStackLayout() {
       <Stack.Screen name="up-to-reelsv2" options={{ title: t('stack.reels') }} />
       <Stack.Screen name="up-to-stories" options={{ title: t('stack.stories') }} />
       <Stack.Screen name="swipe-up-video" options={{ title: t('stack.swipeUp') }} />
+      <Stack.Screen name="page-post-analysis" options={{ title: t('stack.pagePostAnalyze') }} />
+      <Stack.Screen name="group-post-analysis" options={{ title: t('stack.groupPostAnalyze') }} />
+      <Stack.Screen name="group-pending-post-remover" options={{ title: t('stack.groupPendingPostRemover') }} />
     </Stack>
   );
 }

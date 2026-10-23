@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Application from 'expo-application';
 import { router, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 
 import { LanguageSheet } from '@/components/LanguageSheet';
 import { ThemeSheet } from '@/components/ThemeSheet';
@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { planInfo } from '@/lib/plan';
 import { LANGUAGES, useCurrency, useI18n } from '@/lib/i18n';
 import { useTheme } from '@/lib/theme';
+import { checkForUpdate, downloadUrlFor } from '@/lib/updateCheck';
 import { showDialog } from '@/components/Dialog';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -40,6 +41,7 @@ export default function AccountScreen() {
   const [me, setMe] = useState<MetusUser | null>(user);
   const [langOpen, setLangOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   useEffect(() => {
     Api.me().then(setMe).catch(() => {});
@@ -59,6 +61,25 @@ export default function AccountScreen() {
 
   const soon = (title: string) => () => router.push({ pathname: '/tools/coming-soon', params: { title } });
   const go = (href: Href) => () => router.push(href);
+
+  const checkUpdate = async () => {
+    if (checkingUpdate) return;
+    setCheckingUpdate(true);
+    const result = await checkForUpdate();
+    setCheckingUpdate(false);
+    if (!result) {
+      showDialog(t('update.failed'));
+      return;
+    }
+    if (!result.hasUpdate) {
+      showDialog(t('update.upToDate'));
+      return;
+    }
+    showDialog(t('update.available', { version: result.info.version }), result.info.notes, [
+      { text: t('update.later'), style: 'cancel' },
+      { text: t('update.download'), onPress: () => Linking.openURL(downloadUrlFor(result.info)) },
+    ]);
+  };
 
   return (
     <Screen>
@@ -107,6 +128,7 @@ export default function AccountScreen() {
       <SettingRow icon="options-outline" title={t('account.appSettings')} onPress={soon(t('account.appSettings'))} />
       <SettingRow icon="help-circle-outline" title={t('account.support')} onPress={soon(t('account.support'))} />
       <SettingRow icon="document-text-outline" title={t('account.terms')} onPress={soon(t('account.terms'))} />
+      <SettingRow icon="cloud-download-outline" title={t('account.checkUpdate')} value={checkingUpdate ? t('update.checking') : undefined} onPress={checkUpdate} />
       <SettingRow icon="log-out-outline" title={t('account.logout')} danger onPress={confirmLogout} />
 
       <Label>Metus · {t('common.version')} {Application.nativeApplicationVersion ?? ''}</Label>

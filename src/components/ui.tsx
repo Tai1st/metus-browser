@@ -264,7 +264,11 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled,
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+        // alignSelf:'stretch' — nếu không ép full chiều rộng, trên Android vùng
+        // bắt chạm thực tế đôi khi co về đúng kích thước nội dung (chỉ chữ) thay
+        // vì toàn bộ nút, dù layout hiển thị vẫn đúng (lệch giữa accessibility
+        // bounds và vùng responder thật).
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, alignSelf: 'stretch' }}>
           {icon ? <Ionicons name={icon} size={compact ? 15 : 17} color={fg} /> : null}
           <Text style={{ color: fg, fontWeight: '700', fontSize: compact ? 13 : 15 }}>{title}</Text>
         </View>
