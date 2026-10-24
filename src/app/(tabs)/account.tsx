@@ -123,7 +123,7 @@ export default function AccountScreen() {
       <SettingRow icon="receipt-outline" title={t('account.txHistory')} onPress={soon(t('account.txHistory'))} />
       <SettingRow icon="phone-portrait-outline" title={t('account.devices')} value="1/2" onPress={soon(t('account.devices'))} />
       <SettingRow icon="options-outline" title={t('account.appSettings')} onPress={soon(t('account.appSettings'))} />
-      <SettingRow icon="help-circle-outline" title={t('account.support')} onPress={soon(t('account.support'))} />
+      <SettingRow icon="help-circle-outline" title={t('account.support')} onPress={go('/support' as Href)} />
       <SettingRow icon="document-text-outline" title={t('account.terms')} onPress={soon(t('account.terms'))} />
       <SettingRow icon="cloud-download-outline" title={t('account.checkUpdate')} value={checkingUpdate ? t('update.checking') : undefined} onPress={checkUpdate} />
       <SettingRow icon="log-out-outline" title={t('account.logout')} danger onPress={confirmLogout} />

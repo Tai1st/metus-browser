@@ -3,7 +3,7 @@ import { router, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Badge, Body, Card, IconCircle, Row, Title, radius, useColors } from '@/components/ui';
-import { useI18n, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 type Category = 'Tự động hóa' | 'Tạo nội dung' | 'Phân tích' | 'Quản lý';
@@ -11,12 +11,11 @@ type Tone = 'accent' | 'info' | 'success' | 'danger' | 'muted';
 
 export interface ToolItem {
   key: string;
-  title: string;
-  desc: string;
+  /** i18n key (xem src/lib/locales/*.ts, namespace `tool.<key>.title`) — đủ cả 8 ngôn ngữ. */
+  titleKey: string;
+  descKey: string;
   category: Category;
   icon: IconName;
-  /** Bản dịch tiếng Anh (fallback cho mọi ngôn ngữ khác tiếng Việt). */
-  en?: { title: string; desc: string };
   /** Route thật nếu đã làm xong; bỏ trống = "Sắp có". */
   route?: Href;
 }
@@ -24,47 +23,47 @@ export interface ToolItem {
 // Toàn bộ công cụ port từ metus-few (3 cái đầu đã hoạt động, còn lại làm sau).
 export const TOOLS: ToolItem[] = [
   // ----- Tự động hóa -----
-  { key: 'auto-join', title: 'Tự động tham gia nhóm', desc: 'Gửi yêu cầu vào nhiều nhóm theo UID, đa luồng.', category: 'Tự động hóa', icon: 'people', route: '/tools/auto-join-fb-group', en: { title: 'Auto join groups', desc: 'Send join requests to many groups by UID, multi-threaded.' } },
-  { key: 'auto-post', title: 'Đăng bài lên nhóm', desc: 'Đăng một nội dung lên nhiều nhóm, có giãn cách.', category: 'Tự động hóa', icon: 'create', route: '/tools/auto-post-fb-group', en: { title: 'Post to groups', desc: 'Post one content to many groups with spacing.' } },
-  { key: 'auto-comment', title: 'Tự động bình luận nhóm', desc: 'Tự động bình luận vào nhiều nhóm Facebook.', category: 'Tự động hóa', icon: 'chatbubble-ellipses', route: '/tools/auto-comment-fb-group', en: { title: 'Auto comment on groups', desc: 'Automatically comment on many Facebook groups.' } },
-  { key: 'page-comments-bot', title: 'Bot trả lời bình luận Page', desc: 'Tự động trả lời bình luận mới trên Page theo mẫu.', category: 'Tự động hóa', icon: 'chatbubbles', en: { title: 'Page comment reply bot', desc: 'Auto-reply to new Page comments using templates.' } },
-  { key: 'auto-leave-group', title: 'Rời nhóm hàng loạt', desc: 'Rời khỏi nhiều nhóm Facebook cùng lúc.', category: 'Tự động hóa', icon: 'exit', en: { title: 'Bulk leave groups', desc: 'Leave many Facebook groups at once.' } },
-  { key: 'up-to-reelsv2', title: 'Đăng Reels hàng loạt', desc: 'Tải nhiều video lên Reels, copy từ TikTok.', category: 'Tự động hóa', icon: 'film', route: '/tools/up-to-reelsv2', en: { title: 'Bulk upload Reels', desc: 'Upload many videos to Reels, copy from TikTok.' } },
-  { key: 'up-to-stories', title: 'Đăng Stories hàng loạt', desc: 'Tải nhiều video lên Stories, kèm nút CTA.', category: 'Tự động hóa', icon: 'albums', route: '/tools/up-to-stories', en: { title: 'Bulk upload Stories', desc: 'Upload many videos to Stories with a CTA button.' } },
-  { key: 'page-posts-clone', title: 'Sao chép bài trang khác', desc: 'Sao chép bài viết trang khác đăng lên trang mình.', category: 'Tự động hóa', icon: 'copy', en: { title: 'Clone posts from other pages', desc: "Copy another page's posts to your own page." } },
-  { key: 'fb-carousel-deep-clone', title: 'Sao chép bài 2 ô trang khác', desc: 'Clone bài viết 2 ô từ trang khác.', category: 'Tự động hóa', icon: 'copy', en: { title: 'Clone 2-card posts', desc: 'Clone 2-card posts from another page.' } },
-  { key: 'logo', title: 'Tạo logo Fanpage', desc: 'Tạo logo Fanpage đơn giản, không cần thiết kế.', category: 'Tự động hóa', icon: 'color-palette', en: { title: 'Create a Fanpage logo', desc: 'Create a simple Fanpage logo, no design needed.' } },
+  { key: 'auto-join', titleKey: 'tool.autoJoin.title', descKey: 'tool.autoJoin.desc', category: 'Tự động hóa', icon: 'people', route: '/tools/auto-join-fb-group' },
+  { key: 'auto-post', titleKey: 'tool.autoPost.title', descKey: 'tool.autoPost.desc', category: 'Tự động hóa', icon: 'create', route: '/tools/auto-post-fb-group' },
+  { key: 'auto-comment', titleKey: 'tool.autoComment.title', descKey: 'tool.autoComment.desc', category: 'Tự động hóa', icon: 'chatbubble-ellipses', route: '/tools/auto-comment-fb-group' },
+  { key: 'page-comments-bot', titleKey: 'tool.pageCommentsBot.title', descKey: 'tool.pageCommentsBot.desc', category: 'Tự động hóa', icon: 'chatbubbles' },
+  { key: 'auto-leave-group', titleKey: 'tool.autoLeaveGroup.title', descKey: 'tool.autoLeaveGroup.desc', category: 'Tự động hóa', icon: 'exit' },
+  { key: 'up-to-reelsv2', titleKey: 'tool.upToReelsv2.title', descKey: 'tool.upToReelsv2.desc', category: 'Tự động hóa', icon: 'film', route: '/tools/up-to-reelsv2' },
+  { key: 'up-to-stories', titleKey: 'tool.upToStories.title', descKey: 'tool.upToStories.desc', category: 'Tự động hóa', icon: 'albums', route: '/tools/up-to-stories' },
+  { key: 'page-posts-clone', titleKey: 'tool.pagePostsClone.title', descKey: 'tool.pagePostsClone.desc', category: 'Tự động hóa', icon: 'copy' },
+  { key: 'fb-carousel-deep-clone', titleKey: 'tool.fbCarouselDeepClone.title', descKey: 'tool.fbCarouselDeepClone.desc', category: 'Tự động hóa', icon: 'copy' },
+  { key: 'logo', titleKey: 'tool.logo.title', descKey: 'tool.logo.desc', category: 'Tự động hóa', icon: 'color-palette' },
 
   // ----- Tạo nội dung -----
-  { key: 'fb-video-carousel', title: 'Đăng Video 2 Ô Fanpage', desc: 'Tăng like và bình luận cho bài đăng.', category: 'Tạo nội dung', icon: 'videocam', route: '/tools/fb-video-carousel', en: { title: 'Post 2-card video (Page)', desc: 'Boost likes and comments for your post.' } },
-  { key: 'fb-one-card-video-carousel', title: 'Đăng Video 1 Ô Fanpage', desc: 'Tạo bài One Card Video với nút Like.', category: 'Tạo nội dung', icon: 'videocam', route: '/tools/fb-one-card-video-carousel', en: { title: 'Post 1-card video (Page)', desc: 'Create a One Card Video with a Like button.' } },
-  { key: 'fb-one-card-picture-carousel', title: 'Đăng ảnh 1 Ô Fanpage', desc: 'Tạo bài One Card ảnh lớn kèm website.', category: 'Tạo nội dung', icon: 'image', route: '/tools/fb-one-card-picture-carousel', en: { title: 'Post 1-card image (Page)', desc: 'Create a One Card large image with a website.' } },
-  { key: 'post-a-card', title: 'Đăng bài 1 Ô (album giả)', desc: 'Tạo bài One Card album giả, ẩn link affiliate.', category: 'Tạo nội dung', icon: 'card', route: '/tools/post-a-card', en: { title: 'Post 1-card (fake album)', desc: 'Create a One Card fake album, hide affiliate links.' } },
-  { key: 'swipe-up-video', title: 'Swipe Up Video', desc: 'Tạo video vuốt lên tăng truy cập website.', category: 'Tạo nội dung', icon: 'arrow-up-circle', route: '/tools/swipe-up-video', en: { title: 'Swipe Up Video', desc: 'Create swipe-up videos to drive website traffic.' } },
-  { key: 'page-pics-posts', title: 'Đăng ảnh thường lên Trang', desc: 'Đăng & lên lịch nhiều ảnh lên trang một lần.', category: 'Tạo nội dung', icon: 'images', en: { title: 'Post photos to a Page', desc: 'Post & schedule many photos to a page at once.' } },
-  { key: 'page-multi-photo-post', title: 'Đăng nhiều ảnh lên nhiều Trang', desc: 'Đăng nhiều ảnh + nền màu tới nhiều trang.', category: 'Tạo nội dung', icon: 'images', en: { title: 'Post many photos to many Pages', desc: 'Post many photos + color backgrounds to many pages.' } },
-  { key: 'timeline-post', title: 'Đăng bài lên Trang cá nhân', desc: 'Đăng nhiều ảnh + nền màu lên trang cá nhân.', category: 'Tạo nội dung', icon: 'person-circle', en: { title: 'Post to personal timeline', desc: 'Post many photos + color backgrounds to your timeline.' } },
-  { key: 'create-bm-pages', title: 'Tạo hàng loạt Fanpage', desc: 'Tạo nhiều Fanpage với tên & emoji ngẫu nhiên.', category: 'Tạo nội dung', icon: 'duplicate', en: { title: 'Bulk create Fanpages', desc: 'Create many Fanpages with random names & emojis.' } },
+  { key: 'fb-video-carousel', titleKey: 'tool.fbVideoCarousel.title', descKey: 'tool.fbVideoCarousel.desc', category: 'Tạo nội dung', icon: 'videocam', route: '/tools/fb-video-carousel' },
+  { key: 'fb-one-card-video-carousel', titleKey: 'tool.fbOneCardVideoCarousel.title', descKey: 'tool.fbOneCardVideoCarousel.desc', category: 'Tạo nội dung', icon: 'videocam', route: '/tools/fb-one-card-video-carousel' },
+  { key: 'fb-one-card-picture-carousel', titleKey: 'tool.fbOneCardPictureCarousel.title', descKey: 'tool.fbOneCardPictureCarousel.desc', category: 'Tạo nội dung', icon: 'image', route: '/tools/fb-one-card-picture-carousel' },
+  { key: 'post-a-card', titleKey: 'tool.postACard.title', descKey: 'tool.postACard.desc', category: 'Tạo nội dung', icon: 'card', route: '/tools/post-a-card' },
+  { key: 'swipe-up-video', titleKey: 'tool.swipeUpVideo.title', descKey: 'tool.swipeUpVideo.desc', category: 'Tạo nội dung', icon: 'arrow-up-circle', route: '/tools/swipe-up-video' },
+  { key: 'page-pics-posts', titleKey: 'tool.pagePicsPosts.title', descKey: 'tool.pagePicsPosts.desc', category: 'Tạo nội dung', icon: 'images' },
+  { key: 'page-multi-photo-post', titleKey: 'tool.pageMultiPhotoPost.title', descKey: 'tool.pageMultiPhotoPost.desc', category: 'Tạo nội dung', icon: 'images' },
+  { key: 'timeline-post', titleKey: 'tool.timelinePost.title', descKey: 'tool.timelinePost.desc', category: 'Tạo nội dung', icon: 'person-circle' },
+  { key: 'create-bm-pages', titleKey: 'tool.createBmPages.title', descKey: 'tool.createBmPages.desc', category: 'Tạo nội dung', icon: 'duplicate' },
 
   // ----- Phân tích -----
-  { key: 'group-extractor', title: 'Quét nhóm theo UID', desc: 'Trích danh sách nhóm một tài khoản tham gia.', category: 'Phân tích', icon: 'download', route: '/tools/group-extractor-by-uid', en: { title: 'Scan groups by UID', desc: 'Extract the list of groups an account has joined.' } },
-  { key: 'group-search-by-keyword', title: 'Tìm nhóm theo từ khóa', desc: 'Tìm & trích nhóm Facebook theo từ khóa.', category: 'Phân tích', icon: 'search', en: { title: 'Find groups by keyword', desc: 'Find & extract Facebook groups by keyword.' } },
-  { key: 'post-extractor-by-uid', title: 'Quét bài đăng theo UID', desc: 'Trích tất cả bài đăng theo UID, xuất Excel.', category: 'Phân tích', icon: 'document-text', en: { title: 'Scan posts by UID', desc: 'Extract all posts by UID, export to Excel.' } },
+  { key: 'group-extractor', titleKey: 'tool.groupExtractor.title', descKey: 'tool.groupExtractor.desc', category: 'Phân tích', icon: 'download', route: '/tools/group-extractor-by-uid' },
+  { key: 'group-search-by-keyword', titleKey: 'tool.groupSearchByKeyword.title', descKey: 'tool.groupSearchByKeyword.desc', category: 'Phân tích', icon: 'search' },
+  { key: 'post-extractor-by-uid', titleKey: 'tool.postExtractorByUid.title', descKey: 'tool.postExtractorByUid.desc', category: 'Phân tích', icon: 'document-text' },
   // route "as Href": file vừa thêm, types chưa kịp tái sinh (expo-router typegen theo Metro watcher).
-  { key: 'group-posts-analyze', title: 'Phân tích bài đăng nhóm', desc: 'Phân tích bài nhóm theo thời gian/loại nội dung.', category: 'Phân tích', icon: 'bar-chart', route: '/tools/group-post-analysis' as Href, en: { title: 'Analyze group posts', desc: 'Analyze group posts by time / content type.' } },
+  { key: 'group-posts-analyze', titleKey: 'tool.groupPostsAnalyze.title', descKey: 'tool.groupPostsAnalyze.desc', category: 'Phân tích', icon: 'bar-chart', route: '/tools/group-post-analysis' as Href },
   // route "as Href": file vừa thêm, types chưa kịp tái sinh (expo-router typegen theo Metro watcher).
-  { key: 'page-posts-analyze', title: 'Phân tích bài đăng trang', desc: 'Phân tích bài trang theo thời gian, xuất CSV.', category: 'Phân tích', icon: 'stats-chart', route: '/tools/page-post-analysis' as Href, en: { title: 'Analyze page posts', desc: 'Analyze page posts by time, export CSV.' } },
-  { key: 'friends', title: 'Quản lý bạn bè Facebook', desc: 'Xem, lọc, xuất và quản lý bạn bè nâng cao.', category: 'Phân tích', icon: 'people-circle', en: { title: 'Manage Facebook friends', desc: 'View, filter, export and manage friends.' } },
+  { key: 'page-posts-analyze', titleKey: 'tool.pagePostsAnalyze.title', descKey: 'tool.pagePostsAnalyze.desc', category: 'Phân tích', icon: 'stats-chart', route: '/tools/page-post-analysis' as Href },
+  { key: 'friends', titleKey: 'tool.friends.title', descKey: 'tool.friends.desc', category: 'Phân tích', icon: 'people-circle' },
 
   // ----- Quản lý -----
-  { key: 'admin-groups-manager', title: 'Quản lý nhóm (Admin)', desc: 'Duyệt bài, chặn thành viên, xóa bài/bình luận.', category: 'Quản lý', icon: 'shield-checkmark', en: { title: 'Manage groups (Admin)', desc: 'Approve posts, block members, delete posts/comments.' } },
-  { key: 'fb-share-to-pages', title: 'Chia sẻ lên nhiều Fanpage', desc: 'Chia sẻ bài lên nhiều Fanpage một cú nhấp.', category: 'Quản lý', icon: 'share-social', en: { title: 'Share to many Fanpages', desc: 'Share a post to many Fanpages in one click.' } },
-  { key: 'page-posts-hide', title: 'Ẩn bài đăng Fanpage', desc: 'Ẩn bài đăng trên Fanpage siêu nhanh.', category: 'Quản lý', icon: 'eye-off', en: { title: 'Hide Fanpage posts', desc: 'Hide Fanpage posts super fast.' } },
-  { key: 'page-posts-remover', title: 'Xóa bài đăng Fanpage', desc: 'Xóa bài đăng trên Fanpage siêu nhanh.', category: 'Quản lý', icon: 'trash', en: { title: 'Delete Fanpage posts', desc: 'Delete Fanpage posts super fast.' } },
-  { key: 'group-posts-remover', title: 'Xóa bài đăng Group', desc: 'Xóa bài đăng trên Group siêu nhanh.', category: 'Quản lý', icon: 'trash', en: { title: 'Delete Group posts', desc: 'Delete Group posts super fast.' } },
+  { key: 'admin-groups-manager', titleKey: 'tool.adminGroupsManager.title', descKey: 'tool.adminGroupsManager.desc', category: 'Quản lý', icon: 'shield-checkmark' },
+  { key: 'fb-share-to-pages', titleKey: 'tool.fbShareToPages.title', descKey: 'tool.fbShareToPages.desc', category: 'Quản lý', icon: 'share-social' },
+  { key: 'page-posts-hide', titleKey: 'tool.pagePostsHide.title', descKey: 'tool.pagePostsHide.desc', category: 'Quản lý', icon: 'eye-off' },
+  { key: 'page-posts-remover', titleKey: 'tool.pagePostsRemover.title', descKey: 'tool.pagePostsRemover.desc', category: 'Quản lý', icon: 'trash' },
+  { key: 'group-posts-remover', titleKey: 'tool.groupPostsRemover.title', descKey: 'tool.groupPostsRemover.desc', category: 'Quản lý', icon: 'trash' },
   // route "as Href": file vừa thêm, types chưa kịp tái sinh (expo-router typegen theo Metro watcher).
-  { key: 'group-pending-post-remover', title: 'Xóa bài chờ duyệt Group', desc: 'Xóa bài chờ duyệt trên Group siêu nhanh.', category: 'Quản lý', icon: 'trash-bin', route: '/tools/group-pending-post-remover' as Href, en: { title: 'Delete pending Group posts', desc: 'Delete pending Group posts super fast.' } },
-  { key: 'group-posts-spam-remover', title: 'Xóa bài spam Group', desc: 'Xóa bài spam trong Group siêu nhanh.', category: 'Quản lý', icon: 'trash-bin', en: { title: 'Delete spam Group posts', desc: 'Delete spam posts in Groups super fast.' } },
+  { key: 'group-pending-post-remover', titleKey: 'tool.groupPendingPostRemover.title', descKey: 'tool.groupPendingPostRemover.desc', category: 'Quản lý', icon: 'trash-bin', route: '/tools/group-pending-post-remover' as Href },
+  { key: 'group-posts-spam-remover', titleKey: 'tool.groupPostsSpamRemover.title', descKey: 'tool.groupPostsSpamRemover.desc', category: 'Quản lý', icon: 'trash-bin' },
 ];
 
 const CATEGORY_ORDER: Category[] = ['Tự động hóa', 'Tạo nội dung', 'Phân tích', 'Quản lý'];
@@ -81,10 +80,10 @@ export const CATEGORY_KEY: Record<Category, string> = {
   'Quản lý': 'category.manage',
 };
 
-/** Text công cụ theo ngôn ngữ hiện tại (vi gốc, khác vi dùng bản `en`). */
+/** Text công cụ theo ngôn ngữ hiện tại — dịch qua i18n (xem src/lib/locales/*.ts). */
 export function useToolText(): (item: ToolItem) => { title: string; desc: string } {
-  const { lang } = useI18n();
-  return (item) => (lang !== 'vi' && item.en ? item.en : { title: item.title, desc: item.desc });
+  const t = useT();
+  return (item) => ({ title: t(item.titleKey), desc: t(item.descKey) });
 }
 
 function openTool(item: ToolItem, title: string) {
@@ -169,8 +168,8 @@ export interface GridTool extends ToolItem {
 // Công cụ + tiện ích (API Client, Trình duyệt) để hiển thị trong lưới.
 const GRID_TOOLS: GridTool[] = [
   ...TOOLS.map((it) => ({ ...it, tag: (VIDEO_KEYS.has(it.key) ? 'Video' : 'Facebook') as GridTool['tag'] })),
-  { key: 'api-client', title: 'API Client', desc: 'Gửi request như Postman.', category: 'Phân tích', icon: 'flash', route: '/api-client', tag: 'Tiện ích', en: { title: 'API Client', desc: 'Send requests like Postman.' } },
-  { key: 'browser', title: 'Trình duyệt', desc: 'Trình duyệt web tích hợp.', category: 'Phân tích', icon: 'globe', route: '/browser', tag: 'Tiện ích', en: { title: 'Browser', desc: 'Built-in web browser.' } },
+  { key: 'api-client', titleKey: 'tool.apiClient.title', descKey: 'tool.apiClient.desc', category: 'Phân tích', icon: 'flash', route: '/api-client', tag: 'Tiện ích' },
+  { key: 'browser', titleKey: 'tool.browser.title', descKey: 'tool.browser.desc', category: 'Phân tích', icon: 'globe', route: '/browser', tag: 'Tiện ích' },
 ];
 
 // Bảng màu ô (xoay vòng) — mô phỏng lưới nhiều màu của thiết kế.

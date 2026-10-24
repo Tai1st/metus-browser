@@ -40,6 +40,7 @@ function RootStack() {
           <Stack.Screen name="fb-login" options={{ title: t('stack.fbLogin') }} />
           <Stack.Screen name="api-client" options={{ title: t('stack.apiClient') }} />
           <Stack.Screen name="browser" options={{ title: t('stack.browser') }} />
+          <Stack.Screen name="support" options={{ title: t('stack.support') }} />
         </Stack.Protected>
         <Stack.Protected guard={!isLoggedIn}>
           <Stack.Screen name="login" options={{ headerShown: false }} />

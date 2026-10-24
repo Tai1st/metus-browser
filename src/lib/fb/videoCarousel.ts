@@ -12,13 +12,29 @@ export interface PickedMedia {
   mimeType?: string;
 }
 
-/** Nút kêu gọi hành động (CTA) cho mỗi thẻ. */
-export const CTA_ACTIONS: { value: string; label: string; input: boolean }[] = [
-  { value: 'LIKE_PAGE', label: 'Thích Trang', input: false },
-  { value: 'SHOP_NOW', label: 'Mua ngay', input: true },
-  { value: 'LEARN_MORE', label: 'Tìm hiểu thêm', input: true },
-  { value: 'SIGN_UP', label: 'Đăng ký', input: true },
-  { value: 'BOOK_TRAVEL', label: 'Đặt ngay', input: true },
+/** Nút kêu gọi hành động (CTA) cho mỗi thẻ — đầy đủ như PostActions của metus-few.
+ * `labelKey` là i18n key (xem i18n.tsx) — dùng t(labelKey) ở nơi hiển thị, không
+ * hiển thị trực tiếp để nhãn đổi theo ngôn ngữ app. */
+export const CTA_ACTIONS: { value: string; labelKey: string; input: boolean }[] = [
+  { value: 'LIKE_PAGE', labelKey: 'cta.LIKE_PAGE', input: false },
+  { value: 'SHOP_NOW', labelKey: 'cta.SHOP_NOW', input: true },
+  { value: 'BOOK_NOW', labelKey: 'cta.BOOK_NOW', input: true },
+  { value: 'CALL_ME', labelKey: 'cta.CALL_ME', input: true },
+  { value: 'BOOK_TRAVEL', labelKey: 'cta.BOOK_TRAVEL', input: true },
+  { value: 'NO_BUTTON', labelKey: 'cta.NO_BUTTON', input: true },
+  { value: 'CONTACT_US', labelKey: 'cta.CONTACT_US', input: true },
+  { value: 'LEARN_MORE', labelKey: 'cta.LEARN_MORE', input: true },
+  { value: 'INSTALL_APP', labelKey: 'cta.INSTALL_APP', input: true },
+  { value: 'MESSAGE_PAGE', labelKey: 'cta.MESSAGE_PAGE', input: false },
+  { value: 'OPEN_LINK', labelKey: 'cta.OPEN_LINK', input: true },
+  { value: 'PLAY_GAME', labelKey: 'cta.PLAY_GAME', input: true },
+  { value: 'WATCH_MORE', labelKey: 'cta.WATCH_MORE', input: true },
+  { value: 'SEE_MORE', labelKey: 'cta.SEE_MORE', input: true },
+  { value: 'WATCH_VIDEO', labelKey: 'cta.WATCH_VIDEO', input: true },
+  { value: 'USE_APP', labelKey: 'cta.USE_APP', input: true },
+  { value: 'APPLY_NOW', labelKey: 'cta.APPLY_NOW', input: true },
+  { value: 'GET_QUOTE', labelKey: 'cta.GET_QUOTE', input: true },
+  { value: 'SIGN_UP', labelKey: 'cta.SIGN_UP', input: true },
 ];
 
 export interface CardData {
