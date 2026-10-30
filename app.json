@@ -2,7 +2,7 @@
   "expo": {
     "name": "Metus",
     "slug": "metus-browser",
-    "version": "1.0.3",
+    "version": "1.0.4.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "metus",
@@ -10,7 +10,7 @@
     "ios": {
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.metus.browser",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "deploymentTarget": "15.1"
     },
     "android": {
@@ -20,7 +20,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.metus.browser",
-      "versionCode": 4
+      "versionCode": 5
     },
     "web": {
       "output": "static",
