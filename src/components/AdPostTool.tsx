@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { pickMedia as chooseMedia } from '@/lib/pickMedia';
+import { Image } from 'expo-image';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/Logo';
@@ -551,8 +552,10 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
     setError('');
     try {
       if ((a.mimeType ?? '').startsWith('video/')) {
-        const { videoId, picture } = await uploadAdVideo(adAccount.id, token, media);
+        const { videoId, picture, thumbnails } = await uploadAdVideo(adAccount.id, token, media);
         patchCard(i, { video_id: videoId, picture });
+        // Thêm thumbnail video vào Media Library để chọn lại cho card khác, giống metus-few gốc.
+        setLibrary((prev) => [...thumbnails, ...prev]);
       } else {
         const { url } = await uploadAdImage(adAccount.id, token, media);
         patchCard(i, { picture: url, video_id: undefined });
@@ -681,10 +684,10 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
                 <View style={[{ borderWidth: 1, borderColor: c.border, borderRadius: radius.md, overflow: 'hidden', backgroundColor: c.card }, shadow(c, 1)]}>
                   <Pressable onPress={() => pickMedia(i)} style={{ aspectRatio: 1, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
                     {card.preview || card.picture ? (
-                      <Image source={{ uri: card.preview || card.picture }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                      <Image source={{ uri: card.preview || card.picture }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
                     ) : (
                       <>
-                        <Image source={UPLOAD_BG} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                        <Image source={UPLOAD_BG} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                         <View style={{ position: 'absolute', left: 0, right: 0, bottom: '24%', alignItems: 'center', gap: 10, paddingHorizontal: 16 }}>
                           <GradientText size={24}>{imageOnly ? t('adPost.tapChooseImage') : t('adPost.tapChooseVideoOrImage')}</GradientText>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 }}>
@@ -788,7 +791,7 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
                   return (
                     <Pressable key={`${img.hash}-${idx}`} onPress={() => chooseFromLibrary(img)} onLongPress={() => confirmDeleteImage(img)}
                       style={{ width: '31.5%', aspectRatio: 1, borderRadius: radius.sm, overflow: 'hidden', borderWidth: active ? 3 : 1, borderColor: active ? c.accent : c.border }}>
-                      <Image source={{ uri: img.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                      <Image source={{ uri: img.url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                     </Pressable>
                   );
                 })}
@@ -800,7 +803,7 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
                   return (
                     <Pressable key={`${img.hash}-${idx}`} onPress={() => chooseFromLibrary(img)} onLongPress={() => confirmDeleteImage(img)}
                       style={{ width: 96, height: 96, borderRadius: radius.sm, overflow: 'hidden', borderWidth: active ? 3 : 1, borderColor: active ? c.accent : c.border }}>
-                      <Image source={{ uri: img.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                      <Image source={{ uri: img.url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                     </Pressable>
                   );
                 })}
