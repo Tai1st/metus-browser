@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState, type RefObject } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 
 import { Body, Label, radius, shadow, useColors } from '@/components/ui';
@@ -159,6 +159,15 @@ export function FakeAlbumEditor({
   const [boxW, setBoxW] = useState(0);
   const boxH = boxW / spec.ratio;
   const scale = boxW / spec.outWidth; // để cỡ chữ "+9", nút play khớp ảnh xuất
+  // Ảnh vừa chọn (nhất là ảnh thiết bị dung lượng lớn) cần 1 khoảng ngắn để
+  // Image giải mã — không theo dõi thì ô hiện trắng trơn trông như lỗi.
+  // Theo dõi theo uri (không phải index) để không "kẹt" trạng thái cũ khi đổi ảnh.
+  const [pending, setPending] = useState<Record<string, true>>({});
+  const [failed, setFailed] = useState<Record<string, true>>({});
+  // Fresco (Android) thỉnh thoảng báo lỗi giải mã ở lần tải đầu với ảnh gốc
+  // dung lượng lớn — thử tải lại vài lần (đổi key để Image mount lại) trước
+  // khi coi là lỗi thật.
+  const [retryCount, setRetryCount] = useState<Record<string, number>>({});
 
   return (
     <View style={{ gap: 12 }}>
@@ -180,7 +189,44 @@ export function FakeAlbumEditor({
                   onLongPress={() => uri && onRemoveSlot(i)}
                   style={{ position: 'absolute', left: x * boxW, top: y * boxH, width: cellW, height: cellH, borderRadius: spec.rounded ? boxW * 0.03 : 0, overflow: 'hidden' }}>
                   {uri ? (
-                    <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    <>
+                      <Image
+                        key={`${uri}-${retryCount[uri] ?? 0}`}
+                        source={{ uri }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                        onLoadStart={() => setPending((p) => ({ ...p, [uri]: true }))}
+                        onLoad={() => {
+                          setPending((p) => { const { [uri]: _drop, ...rest } = p; return rest; });
+                          setFailed((f) => { const { [uri]: _drop, ...rest } = f; return rest; });
+                        }}
+                        onError={() => {
+                          const attempts = retryCount[uri] ?? 0;
+                          if (attempts < 2) {
+                            setTimeout(() => setRetryCount((r) => ({ ...r, [uri]: attempts + 1 })), 400);
+                          } else {
+                            setPending((p) => { const { [uri]: _drop, ...rest } = p; return rest; });
+                            setFailed((f) => ({ ...f, [uri]: true }));
+                          }
+                        }}
+                      />
+                      {pending[uri] && !failed[uri] ? (
+                        <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: c.chip, alignItems: 'center', justifyContent: 'center' }}>
+                          <ActivityIndicator color={c.accent} />
+                        </View>
+                      ) : null}
+                      {failed[uri] ? (
+                        <Pressable
+                          onPress={() => {
+                            setFailed((f) => { const { [uri]: _drop, ...rest } = f; return rest; });
+                            setRetryCount((r) => ({ ...r, [uri]: 0 }));
+                          }}
+                          style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: c.chip, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                          <Ionicons name="refresh-circle" size={Math.max(18, Math.min(cellW, cellH) * 0.18)} color={c.danger} />
+                          <Text style={{ color: c.danger, fontSize: 10, fontWeight: '700' }}>Lỗi tải ảnh · bấm để thử lại</Text>
+                        </Pressable>
+                      ) : null}
+                    </>
                   ) : (
                     <View style={{ flex: 1, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#fff' }}>
                       <Ionicons name="add-circle" size={Math.max(20, Math.min(cellW, cellH) * 0.22)} color={c.accent} />
