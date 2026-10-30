@@ -12,7 +12,7 @@ import { tr } from '../i18n';
 
 const GRAPHQL = 'https://www.facebook.com/api/graphql?metuscors=0';
 
-const uuid = () => Crypto.randomUUID();
+export const uuid = () => Crypto.randomUUID();
 
 /** File chọn từ máy (DocumentPicker). */
 export interface LocalFile {
@@ -23,14 +23,14 @@ export interface LocalFile {
 }
 
 /** Bỏ tiền tố "for (;;);" và lấy dòng JSON đầu (GraphQL có thể stream nhiều dòng). */
-function parseFbJson(data: unknown): any {
+export function parseFbJson(data: unknown): any {
   if (typeof data !== 'string') return data;
   const first = data.replace(/^for \(;;\);/, '').split('\n')[0];
   return JSON.parse(first);
 }
 
 /** pageId → request mang cookie i_user=<pageId> (hành động dưới danh nghĩa Page). */
-async function graphql(form: FormData, pageId?: string): Promise<any> {
+export async function graphql(form: FormData, pageId?: string): Promise<any> {
   const { data } = await instance.post<string>(GRAPHQL, form, {
     iUser: pageId,
     headers: { origin: 'https://www.facebook.com', referer: 'https://www.facebook.com/' },
@@ -215,8 +215,9 @@ export async function uploadGroupImage(p: { dtsg: string; fbId: string; file: Lo
 }
 
 /** Upload video cho bài nhóm (resumable upload của Facebook) → video_id. */
-export async function uploadGroupVideo(p: { dtsg: string; fbId: string; file: LocalFile; pageId?: string }): Promise<string> {
+export async function uploadGroupVideo(p: { dtsg: string; fbId: string; file: LocalFile; pageId?: string; composerEntryPointRef?: string }): Promise<string> {
   const target = p.pageId || p.fbId;
+  const entryPointRef = p.composerEntryPointRef ?? 'group';
   const size = p.file.size;
   if (!size) throw new Error(tr('gp.err.videoSize'));
 
@@ -242,7 +243,7 @@ export async function uploadGroupVideo(p: { dtsg: string; fbId: string; file: Lo
   const startForm = new FormData();
   const startFields: Record<string, string> = {
     fb_dtsg: p.dtsg, av: target, server_timestamps: 'true', waterfall_id: waterfallId, __comet_req: '11', target_id: target,
-    source: 'composer', composer_entry_point_ref: 'group', dpr: '1.5', supports_chunking: 'true', supports_file_api: 'true',
+    source: 'composer', composer_entry_point_ref: entryPointRef, dpr: '1.5', supports_chunking: 'true', supports_file_api: 'true',
     has_file_been_replaced: 'false', file_size: String(size), file_extension: 'mp4', partition_start_offset: '0',
     partition_end_offset: String(size), jazoest: '25470', __a: '1', __user: p.fbId,
   };
@@ -278,7 +279,7 @@ export async function uploadGroupVideo(p: { dtsg: string; fbId: string; file: Lo
   if (!upHash) throw new Error(tr('gp.err.videoHash'));
 
   const receive = new URLSearchParams({
-    waterfall_id: waterfallId, target_id: target, video_id: String(videoId), source: 'composer', composer_entry_point_ref: 'group',
+    waterfall_id: waterfallId, target_id: target, video_id: String(videoId), source: 'composer', composer_entry_point_ref: entryPointRef,
     supports_chunking: 'true', supports_upload_service: 'true', partition_start_offset: '0', partition_end_offset: String(size),
     start_offset: '0', end_offset: String(size), fbuploader_video_file_chunk: upHash, has_file_been_replaced: 'false',
     __user: p.fbId, __a: '1', fb_dtsg: p.dtsg, __comet_req: '11',

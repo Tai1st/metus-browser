@@ -42,7 +42,7 @@ export const TOOLS: ToolItem[] = [
   { key: 'swipe-up-video', titleKey: 'tool.swipeUpVideo.title', descKey: 'tool.swipeUpVideo.desc', category: 'Tạo nội dung', icon: 'arrow-up-circle', route: '/tools/swipe-up-video' },
   { key: 'page-pics-posts', titleKey: 'tool.pagePicsPosts.title', descKey: 'tool.pagePicsPosts.desc', category: 'Tạo nội dung', icon: 'images' },
   { key: 'page-multi-photo-post', titleKey: 'tool.pageMultiPhotoPost.title', descKey: 'tool.pageMultiPhotoPost.desc', category: 'Tạo nội dung', icon: 'images' },
-  { key: 'timeline-post', titleKey: 'tool.timelinePost.title', descKey: 'tool.timelinePost.desc', category: 'Tạo nội dung', icon: 'person-circle' },
+  { key: 'profile-post', titleKey: 'tool.profilePost.title', descKey: 'tool.profilePost.desc', category: 'Tạo nội dung', icon: 'person-circle', route: '/tools/profile-post' as Href },
   { key: 'create-bm-pages', titleKey: 'tool.createBmPages.title', descKey: 'tool.createBmPages.desc', category: 'Tạo nội dung', icon: 'duplicate' },
 
   // ----- Phân tích -----
