@@ -61,8 +61,8 @@ export async function uploadAdImage(adAccountId: string, token: string, file: Pi
   return { url: img.url, hash: img.hash };
 }
 
-/** Upload 1 video từ máy lên ad account; đợi thumbnail; trả video_id + ảnh bìa. */
-export async function uploadAdVideo(adAccountId: string, token: string, file: PickedMedia): Promise<{ videoId: string; picture: string }> {
+/** Upload 1 video từ máy lên ad account; đợi thumbnail; trả video_id + ảnh bìa + toàn bộ thumbnail (để thêm vào Media Library, giống metus-few gốc). */
+export async function uploadAdVideo(adAccountId: string, token: string, file: PickedMedia): Promise<{ videoId: string; picture: string; thumbnails: AdImage[] }> {
   const fd = new FormData();
   fd.append('source', { uri: file.uri, name: file.name, type: file.mimeType ?? 'video/mp4' } as unknown as Blob);
   const { data } = await instance.post<any>(`${GRAPH}/v21.0/${adAccountId}/advideos`, fd, {
@@ -71,37 +71,38 @@ export async function uploadAdVideo(adAccountId: string, token: string, file: Pi
   });
   const videoId = data?.id;
   if (!videoId) throw new Error('Upload video thất bại');
-  return { videoId, picture: await waitVideoThumbnail(videoId, token) };
+  const thumbnails = await waitVideoThumbnails(videoId, token);
+  return { videoId, picture: thumbnails[0]?.url ?? '', thumbnails };
 }
 
 /** Đợi Facebook xử lý video và trả ảnh bìa (thumbnail ưu tiên, hoặc `picture`). */
 export async function waitVideoThumbnail(videoId: string, token: string): Promise<string> {
-  await delay(4000);
-  let lastErr = '';
-  // ~3 phút: video dài/nặng Facebook xử lý lâu mới có thumbnail
-  for (let i = 0; i < 45; i++) {
+  const thumbnails = await waitVideoThumbnails(videoId, token);
+  return thumbnails[0]?.url ?? '';
+}
+
+/** Đợi Facebook xử lý video và trả toàn bộ danh sách thumbnail — y hệt metus-few
+ * gốc (useFbVideoCarousel.ts): vòng lặp tối đa 25 lần cách nhau 3s, chỉ dừng
+ * sớm khi có >1 thumbnail; hết vòng lặp vẫn dùng kết quả cuối cùng (có thể
+ * rỗng hoặc chỉ 1 ảnh) chứ không coi là lỗi — không sắp lại theo is_preferred,
+ * không có fallback nào khác. */
+export async function waitVideoThumbnails(videoId: string, token: string): Promise<AdImage[]> {
+  await delay(5000);
+  let list: any[] = [];
+  for (let i = 0; i < 25; i++) {
     try {
       let thumbs = await getVideoThumbnails(videoId, token);
       // Graph đôi khi trả content-type text/javascript → exFetch không tự parse
       if (typeof thumbs === 'string') thumbs = JSON.parse(thumbs);
-      if (thumbs?.error) {
-        lastErr = thumbs.error.message ?? JSON.stringify(thumbs.error);
-        console.warn('[thumb]', videoId, 'lỗi', lastErr);
-      } else {
-        const list: any[] = thumbs?.thumbnails?.data ?? [];
-        const preferred = list.find((t) => t?.is_preferred) ?? list[0];
-        console.log('[thumb]', videoId, `lần ${i + 1}`, 'thumbnails:', list.length, 'picture:', !!thumbs?.picture, 'status:', thumbs?.status?.video_status);
-        if (preferred?.uri) return preferred.uri;
-        // `picture` có sẵn ngay cả khi chưa xử lý xong (ảnh xám) → chỉ dùng khi video đã sẵn sàng
-        if (thumbs?.picture && thumbs?.status?.video_status === 'ready') return thumbs.picture;
-      }
+      list = thumbs?.thumbnails?.data ?? [];
+      console.log('[thumb]', videoId, `lần ${i + 1}`, 'thumbnails:', list.length, 'status:', thumbs?.status?.video_status);
+      if (list.length > 1) break;
     } catch (e) {
-      lastErr = e instanceof Error ? e.message : String(e);
-      console.warn('[thumb]', videoId, 'exception', lastErr);
+      console.warn('[thumb]', videoId, 'exception', e instanceof Error ? e.message : String(e));
     }
-    await delay(i < 10 ? 2000 : 4000);
+    await delay(3000);
   }
-  throw new Error(`Không lấy được ảnh bìa video${lastErr ? `: ${lastErr}` : ' (Facebook chưa xử lý xong video, thử lại sau)'}`);
+  return list.filter((t) => t?.uri).map((t) => ({ hash: String(t.id ?? t.uri), url: String(t.uri) }));
 }
 
 export async function getVideoThumbnails(videoId: string, token: string): Promise<any> {
