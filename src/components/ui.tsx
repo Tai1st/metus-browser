@@ -92,6 +92,9 @@ export function Screen({ children, scroll = true, pad = true }: { children: Reac
     <ScrollView
       contentContainerStyle={[pad && styles.screen, { paddingBottom: 110 }]}
       keyboardShouldPersistTaps="handled"
+      // Tự cuộn để ô nhập đang gõ không bị bàn phím che — không cần
+      // KeyboardAvoidingView/thư viện ngoài (RN 0.71+ hỗ trợ cả iOS lẫn Android).
+      automaticallyAdjustKeyboardInsets
       showsVerticalScrollIndicator={false}>
       {children}
     </ScrollView>
