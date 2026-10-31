@@ -41,12 +41,18 @@ export default function ToolsStackLayout() {
       <Stack.Screen name="fb-one-card-picture-carousel" options={{ title: t('stack.oneCardPicture') }} />
       <Stack.Screen name="post-a-card" options={{ title: t('stack.fakeAlbum') }} />
       <Stack.Screen name="auto-comment-fb-group" options={{ title: t('stack.autoComment') }} />
-      <Stack.Screen name="up-to-reelsv2" options={{ title: t('stack.reels') }} />
+      <Stack.Screen name="auto-leave-group" options={{ title: t('stack.autoLeaveGroup') }} />
+      <Stack.Screen name="up-to-reels" options={{ title: t('stack.reels') }} />
+      <Stack.Screen name="page-pics-posts" options={{ title: t('stack.pagePicsPosts') }} />
       <Stack.Screen name="up-to-stories" options={{ title: t('stack.stories') }} />
       <Stack.Screen name="swipe-up-video" options={{ title: t('stack.swipeUp') }} />
       <Stack.Screen name="page-post-analysis" options={{ title: t('stack.pagePostAnalyze') }} />
       <Stack.Screen name="group-post-analysis" options={{ title: t('stack.groupPostAnalyze') }} />
+      <Stack.Screen name="page-posts-clone" options={{ title: t('stack.pagePostsClone') }} />
+      <Stack.Screen name="fb-carousel-deep-clone" options={{ title: t('stack.carouselClone') }} />
       <Stack.Screen name="group-pending-post-remover" options={{ title: t('stack.groupPendingPostRemover') }} />
+      <Stack.Screen name="group-posts-spam-remover" options={{ title: t('stack.groupPostsSpamRemover') }} />
+      <Stack.Screen name="group-posts-remover" options={{ title: t('stack.groupPostsRemover') }} />
       <Stack.Screen name="profile-post" options={{ title: t('stack.profilePost') }} />
     </Stack>
   );

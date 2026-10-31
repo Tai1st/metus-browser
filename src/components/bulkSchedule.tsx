@@ -8,7 +8,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { DateTimePickerModal, fmtDateTime } from '@/components/AdPostTool';
-import { PURPLE, TimeSlotModal } from '@/components/cycle';
+import { TimeSlotModal } from '@/components/cycle';
 import { StepField, TickBox } from '@/components/groupPost';
 import { Body, Row, radius, shadow, useColors } from '@/components/ui';
 import { useT } from '@/lib/i18n';
@@ -76,7 +76,7 @@ function DateRow({ label, value, onPress, disabled }: { label: string; value: st
       <Text style={{ fontSize: 11.5, fontWeight: '600', color: c.muted }}>{label}</Text>
       <Pressable disabled={disabled} onPress={onPress}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: radius.sm, borderWidth: 1, borderColor: c.inputBorder, backgroundColor: c.input }}>
-        <Ionicons name="calendar-outline" size={16} color={PURPLE} />
+        <Ionicons name="calendar-outline" size={16} color={c.accent} />
         <Text style={{ fontWeight: '600', color: c.text }}>{value}</Text>
       </Pressable>
     </View>
@@ -115,7 +115,7 @@ export function BulkScheduleSection({ s, disabled, total, totalLabel }: {
               return (
                 <Pressable key={m} disabled={disabled} onPress={() => s.setMode(m)}
                   style={[{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 8, backgroundColor: on ? c.card : 'transparent' }, on ? shadow(c, 1) : null]}>
-                  <Text style={{ fontSize: 12.5, fontWeight: on ? '700' : '500', color: on ? PURPLE : c.muted }}>{t(m === 'frequency' ? 'reels.modeFrequency' : 'reels.modeCustom')}</Text>
+                  <Text style={{ fontSize: 12.5, fontWeight: on ? '700' : '500', color: on ? c.accent : c.muted }}>{t(m === 'frequency' ? 'reels.modeFrequency' : 'reels.modeCustom')}</Text>
                 </Pressable>
               );
             })}
@@ -144,8 +144,8 @@ export function BulkScheduleSection({ s, disabled, total, totalLabel }: {
               </View>
               <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap', rowGap: 6 }}>
                 <Pressable disabled={disabled} onPress={() => s.setDailyTimes([...s.dailyTimes, '12:00'])} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Ionicons name="add" size={14} color={PURPLE} />
-                  <Text style={{ fontSize: 12.5, fontWeight: '600', color: PURPLE }}>{t('reels.addSlot')}</Text>
+                  <Ionicons name="add" size={14} color={c.accent} />
+                  <Text style={{ fontSize: 12.5, fontWeight: '600', color: c.accent }}>{t('reels.addSlot')}</Text>
                 </Pressable>
                 <Row gap={4}>
                   <Text style={{ fontSize: 11, color: c.muted }}>{t('reels.presets')}:</Text>

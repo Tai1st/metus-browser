@@ -20,6 +20,7 @@ import { showDialog } from '@/components/Dialog';
 import { needsWatermark } from '@/lib/plan';
 import { detectVideoLink, uploadAdVideoFromLink } from '@/lib/fb/videoFromLink';
 import { ALBUM_LAYOUTS, AlbumLayoutPicker, FakeAlbumEditor, captureAlbum, type AlbumLayout } from '@/components/FakeAlbumEditor';
+import type { LocalFile } from '@/lib/fb/Group';
 
 // Ảnh placeholder ô chọn video (theo ngôn ngữ).
 // Nền chung (không chữ) cho ô chọn video — chữ đè lên bằng lang hiện tại, không cần 2 ảnh riêng.
@@ -364,6 +365,9 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
 
   const [primaryText, setPrimaryText] = useState('');
   const [likeEnabled, setLikeEnabled] = useState(false);
+  const [commentOn, setCommentOn] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [commentPhoto, setCommentPhoto] = useState<LocalFile | null>(null);
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleAt, setScheduleAt] = useState<Date | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -609,7 +613,7 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
       setPostPageLabel(t('adPost.pageProgress', { idx: idx + 1, total: selected.length, name: page.name }));
       const report = (f: number) => setPostPercent(((idx + f) / selected.length) * 100);
       try {
-        const postId = await createCarouselPost({ mode, displayLink, displayLinkDescription, albumImageUrl, websiteUrl: albumWebsite.trim(), hidePost: isAlbum && hidePost, token, adAccountId: adAccount.id, page, dtsg, fbId, primaryText, cards, watermark, like: likeEnabled, scheduleUnix: isAlbum && hidePost ? undefined : scheduleUnix, onProgress: report });
+        const postId = await createCarouselPost({ mode, displayLink, displayLinkDescription, albumImageUrl, websiteUrl: albumWebsite.trim(), hidePost: isAlbum && hidePost, token, adAccountId: adAccount.id, page, dtsg, fbId, primaryText, cards, watermark, like: likeEnabled, commentText: commentOn ? commentText : undefined, commentPhoto: commentOn ? commentPhoto : undefined, scheduleUnix: isAlbum && hidePost ? undefined : scheduleUnix, onProgress: report });
         setPosts((prev) => prev.map((r) => (r.pageId === page.id ? { ...r, status: 'done', note: postId } : r)));
         addHistory({ postId, pageId: page.id, pageName: page.name, pagePicture: page.picture, status: 'done', at: Date.now() });
       } catch (e) {
@@ -840,6 +844,38 @@ function Runner({ dtsg, fbId, mode, watermark }: { dtsg: string; fbId: string; m
               <Body weight="600" size={14}>{t('adPost.autoLikeLabel')}</Body>
               <Switch value={likeEnabled} onValueChange={setLikeEnabled} trackColor={{ true: c.accent }} />
             </Row>}
+            {isAlbum && hidePost ? null : (
+              <View style={{ gap: 8 }}>
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <Body weight="600" size={14}>{t('adPost.commentAfterLabel')}</Body>
+                  <Switch value={commentOn} onValueChange={setCommentOn} trackColor={{ true: c.accent }} />
+                </Row>
+                {commentOn ? (
+                  <>
+                    <Field value={commentText} onChangeText={setCommentText} multiline placeholder={t('gp.commentPh')} />
+                    {commentPhoto ? (
+                      <View style={{ alignSelf: 'flex-start' }}>
+                        <Image source={{ uri: commentPhoto.uri }} style={{ width: 72, height: 72, borderRadius: radius.sm }} />
+                        <Pressable onPress={() => setCommentPhoto(null)} hitSlop={6}
+                          style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' }}>
+                          <Ionicons name="close" size={13} color="#fff" />
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <Pressable
+                        onPress={async () => {
+                          const [a] = await chooseMedia('image', false);
+                          if (a) setCommentPhoto({ uri: a.uri, name: a.name, type: a.mimeType ?? 'image/jpeg' });
+                        }}
+                        style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.sm, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.accent, backgroundColor: c.accentSoft }}>
+                        <Ionicons name="image-outline" size={16} color={c.accent} />
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: c.accent }}>{t('gp.commentAddPhoto')}</Text>
+                      </Pressable>
+                    )}
+                  </>
+                ) : null}
+              </View>
+            )}
           </Card>
 
           {error ? <Body color={c.danger} size={13}>{error}</Body> : null}

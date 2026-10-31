@@ -18,29 +18,31 @@ export interface ToolItem {
   icon: IconName;
   /** Route thật nếu đã làm xong; bỏ trống = "Sắp có". */
   route?: Href;
+  /** Dùng được ở gói miễn phí (ToolGate require "none"/"plan"), không cần gói trả phí. */
+  free?: boolean;
 }
 
 // Toàn bộ công cụ port từ metus-few (3 cái đầu đã hoạt động, còn lại làm sau).
 export const TOOLS: ToolItem[] = [
   // ----- Tự động hóa -----
-  { key: 'auto-join', titleKey: 'tool.autoJoin.title', descKey: 'tool.autoJoin.desc', category: 'Tự động hóa', icon: 'people', route: '/tools/auto-join-fb-group' },
-  { key: 'auto-post', titleKey: 'tool.autoPost.title', descKey: 'tool.autoPost.desc', category: 'Tự động hóa', icon: 'create', route: '/tools/auto-post-fb-group' },
-  { key: 'auto-comment', titleKey: 'tool.autoComment.title', descKey: 'tool.autoComment.desc', category: 'Tự động hóa', icon: 'chatbubble-ellipses', route: '/tools/auto-comment-fb-group' },
+  { key: 'auto-join', titleKey: 'tool.autoJoin.title', descKey: 'tool.autoJoin.desc', category: 'Tự động hóa', icon: 'people', route: '/tools/auto-join-fb-group', free: true },
+  { key: 'auto-post', titleKey: 'tool.autoPost.title', descKey: 'tool.autoPost.desc', category: 'Tự động hóa', icon: 'create', route: '/tools/auto-post-fb-group', free: true },
+  { key: 'auto-comment', titleKey: 'tool.autoComment.title', descKey: 'tool.autoComment.desc', category: 'Tự động hóa', icon: 'chatbubble-ellipses', route: '/tools/auto-comment-fb-group', free: true },
   { key: 'page-comments-bot', titleKey: 'tool.pageCommentsBot.title', descKey: 'tool.pageCommentsBot.desc', category: 'Tự động hóa', icon: 'chatbubbles' },
-  { key: 'auto-leave-group', titleKey: 'tool.autoLeaveGroup.title', descKey: 'tool.autoLeaveGroup.desc', category: 'Tự động hóa', icon: 'exit' },
-  { key: 'up-to-reelsv2', titleKey: 'tool.upToReelsv2.title', descKey: 'tool.upToReelsv2.desc', category: 'Tự động hóa', icon: 'film', route: '/tools/up-to-reelsv2' },
+  { key: 'auto-leave-group', titleKey: 'tool.autoLeaveGroup.title', descKey: 'tool.autoLeaveGroup.desc', category: 'Tự động hóa', icon: 'exit', route: '/tools/auto-leave-group', free: true },
+  { key: 'up-to-reels', titleKey: 'tool.upToReelsv2.title', descKey: 'tool.upToReelsv2.desc', category: 'Tự động hóa', icon: 'film', route: '/tools/up-to-reels' },
   { key: 'up-to-stories', titleKey: 'tool.upToStories.title', descKey: 'tool.upToStories.desc', category: 'Tự động hóa', icon: 'albums', route: '/tools/up-to-stories' },
-  { key: 'page-posts-clone', titleKey: 'tool.pagePostsClone.title', descKey: 'tool.pagePostsClone.desc', category: 'Tự động hóa', icon: 'copy' },
-  { key: 'fb-carousel-deep-clone', titleKey: 'tool.fbCarouselDeepClone.title', descKey: 'tool.fbCarouselDeepClone.desc', category: 'Tự động hóa', icon: 'copy' },
+  { key: 'page-posts-clone', titleKey: 'tool.pagePostsClone.title', descKey: 'tool.pagePostsClone.desc', category: 'Tự động hóa', icon: 'copy', route: '/tools/page-posts-clone' as Href },
+  { key: 'fb-carousel-deep-clone', titleKey: 'tool.fbCarouselDeepClone.title', descKey: 'tool.fbCarouselDeepClone.desc', category: 'Tự động hóa', icon: 'copy', route: '/tools/fb-carousel-deep-clone' as Href },
   { key: 'logo', titleKey: 'tool.logo.title', descKey: 'tool.logo.desc', category: 'Tự động hóa', icon: 'color-palette' },
 
   // ----- Tạo nội dung -----
-  { key: 'fb-video-carousel', titleKey: 'tool.fbVideoCarousel.title', descKey: 'tool.fbVideoCarousel.desc', category: 'Tạo nội dung', icon: 'videocam', route: '/tools/fb-video-carousel' },
+  { key: 'fb-video-carousel', titleKey: 'tool.fbVideoCarousel.title', descKey: 'tool.fbVideoCarousel.desc', category: 'Tạo nội dung', icon: 'videocam', route: '/tools/fb-video-carousel', free: true },
   { key: 'fb-one-card-video-carousel', titleKey: 'tool.fbOneCardVideoCarousel.title', descKey: 'tool.fbOneCardVideoCarousel.desc', category: 'Tạo nội dung', icon: 'videocam', route: '/tools/fb-one-card-video-carousel' },
   { key: 'fb-one-card-picture-carousel', titleKey: 'tool.fbOneCardPictureCarousel.title', descKey: 'tool.fbOneCardPictureCarousel.desc', category: 'Tạo nội dung', icon: 'image', route: '/tools/fb-one-card-picture-carousel' },
   { key: 'post-a-card', titleKey: 'tool.postACard.title', descKey: 'tool.postACard.desc', category: 'Tạo nội dung', icon: 'card', route: '/tools/post-a-card' },
   { key: 'swipe-up-video', titleKey: 'tool.swipeUpVideo.title', descKey: 'tool.swipeUpVideo.desc', category: 'Tạo nội dung', icon: 'arrow-up-circle', route: '/tools/swipe-up-video' },
-  { key: 'page-pics-posts', titleKey: 'tool.pagePicsPosts.title', descKey: 'tool.pagePicsPosts.desc', category: 'Tạo nội dung', icon: 'images' },
+  { key: 'page-pics-posts', titleKey: 'tool.pagePicsPosts.title', descKey: 'tool.pagePicsPosts.desc', category: 'Tạo nội dung', icon: 'images', route: '/tools/page-pics-posts' },
   { key: 'page-multi-photo-post', titleKey: 'tool.pageMultiPhotoPost.title', descKey: 'tool.pageMultiPhotoPost.desc', category: 'Tạo nội dung', icon: 'images' },
   { key: 'profile-post', titleKey: 'tool.profilePost.title', descKey: 'tool.profilePost.desc', category: 'Tạo nội dung', icon: 'person-circle', route: '/tools/profile-post' as Href },
   { key: 'create-bm-pages', titleKey: 'tool.createBmPages.title', descKey: 'tool.createBmPages.desc', category: 'Tạo nội dung', icon: 'duplicate' },
@@ -60,10 +62,10 @@ export const TOOLS: ToolItem[] = [
   { key: 'fb-share-to-pages', titleKey: 'tool.fbShareToPages.title', descKey: 'tool.fbShareToPages.desc', category: 'Quản lý', icon: 'share-social' },
   { key: 'page-posts-hide', titleKey: 'tool.pagePostsHide.title', descKey: 'tool.pagePostsHide.desc', category: 'Quản lý', icon: 'eye-off' },
   { key: 'page-posts-remover', titleKey: 'tool.pagePostsRemover.title', descKey: 'tool.pagePostsRemover.desc', category: 'Quản lý', icon: 'trash' },
-  { key: 'group-posts-remover', titleKey: 'tool.groupPostsRemover.title', descKey: 'tool.groupPostsRemover.desc', category: 'Quản lý', icon: 'trash' },
+  { key: 'group-posts-remover', titleKey: 'tool.groupPostsRemover.title', descKey: 'tool.groupPostsRemover.desc', category: 'Quản lý', icon: 'trash', route: '/tools/group-posts-remover' as Href },
   // route "as Href": file vừa thêm, types chưa kịp tái sinh (expo-router typegen theo Metro watcher).
   { key: 'group-pending-post-remover', titleKey: 'tool.groupPendingPostRemover.title', descKey: 'tool.groupPendingPostRemover.desc', category: 'Quản lý', icon: 'trash-bin', route: '/tools/group-pending-post-remover' as Href },
-  { key: 'group-posts-spam-remover', titleKey: 'tool.groupPostsSpamRemover.title', descKey: 'tool.groupPostsSpamRemover.desc', category: 'Quản lý', icon: 'trash-bin' },
+  { key: 'group-posts-spam-remover', titleKey: 'tool.groupPostsSpamRemover.title', descKey: 'tool.groupPostsSpamRemover.desc', category: 'Quản lý', icon: 'trash-bin', route: '/tools/group-posts-spam-remover' as Href },
 ];
 
 const CATEGORY_ORDER: Category[] = ['Tự động hóa', 'Tạo nội dung', 'Phân tích', 'Quản lý'];
@@ -102,7 +104,7 @@ export function ToolCard({ item }: { item: ToolItem }) {
         <View style={{ flex: 1, gap: 2 }}>
           <Row gap={6}>
             <Body weight="700" size={15}>{text.title}</Body>
-            {!item.route ? <Badge text={t('tools.soon')} tone="muted" /> : null}
+            {!item.route ? <Badge text={t('tools.soon')} tone="muted" /> : item.free ? <Badge text={t('tools.free')} tone="success" /> : null}
           </Row>
           <Body muted size={13} numberOfLines={2}>{text.desc}</Body>
         </View>
@@ -158,7 +160,7 @@ export const TAG_KEY: Record<ToolTag, string> = {
 
 const VIDEO_KEYS = new Set([
   'fb-video-carousel', 'fb-one-card-video-carousel', 'fb-one-card-picture-carousel',
-  'post-a-card', 'swipe-up-video', 'up-to-reelsv2', 'up-to-stories',
+  'post-a-card', 'swipe-up-video', 'up-to-reels', 'up-to-stories',
 ]);
 
 export interface GridTool extends ToolItem {
@@ -187,6 +189,7 @@ export function findGridTool(key: string): GridTool | undefined {
 
 function ToolTile({ item }: { item: GridTool }) {
   const c = useColors();
+  const t = useT();
   const text = useToolText()(item);
   const color = item.route ? tileColor(item.key) : c.faint;
   return (
@@ -196,6 +199,10 @@ function ToolTile({ item }: { item: GridTool }) {
         {!item.route ? (
           <View style={[gridStyles.soonDot, { backgroundColor: c.card, borderColor: c.border }]}>
             <Ionicons name="time" size={11} color={c.faint} />
+          </View>
+        ) : item.free ? (
+          <View style={[gridStyles.freeDot, { borderColor: c.card, backgroundColor: c.success }]}>
+            <Text style={gridStyles.freeDotText}>{t('tools.free')}</Text>
           </View>
         ) : null}
       </View>
@@ -232,5 +239,7 @@ const gridStyles = StyleSheet.create({
   tile: { width: '33.333%', paddingHorizontal: 6, paddingVertical: 10, alignItems: 'center', gap: 8 },
   tileIcon: { width: 60, height: 60, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   soonDot: { position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  freeDot: { position: 'absolute', top: -4, left: -4, borderRadius: radius.pill, borderWidth: 1.5, paddingHorizontal: 5, paddingVertical: 1.5 },
+  freeDotText: { fontSize: 8.5, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
   tileLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center', lineHeight: 15 },
 });

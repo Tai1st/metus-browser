@@ -8,6 +8,16 @@ const GRAPH = 'https://graph.facebook.com';
 
 export type PostType = 'photo' | 'link' | 'media_set' | 'video' | 'text' | 'album' | 'shared' | 'others';
 
+/** Dữ liệu `attachments` thô của Facebook (đủ sâu để đọc card quảng cáo 2 ô "multi_share_no_end_card"). */
+export interface RawAttachment {
+  type?: string;
+  url?: string;
+  title?: string;
+  description?: string;
+  media?: { image?: { src?: string }; source?: string };
+  subattachments?: { data?: RawAttachment[] };
+}
+
 export interface PagePostInfo {
   id: string;
   name: string;
@@ -25,6 +35,10 @@ export interface PagePostRow {
   comments: number;
   shares: number;
   image: string | null;
+  /** Link bài gốc (dùng để clone bài link/shared nếu không tìm được link đính kèm). */
+  permalinkUrl: string;
+  /** Dữ liệu đính kèm thô của Facebook (media/type/url/subattachments) — dùng để clone bài (lấy URL video/ảnh/link gốc, hoặc card quảng cáo 2 ô). */
+  attachments: RawAttachment[];
 }
 
 function getPostType(attachments?: Array<{ type?: string }>): PostType {
@@ -60,7 +74,7 @@ export async function fetchPagePostInfo(urlOrId: string, token: string): Promise
 }
 
 const FEED_FIELDS =
-  'id,message,created_time,from{id,name,link},full_picture,shares,reactions.limit(0).summary(true),comments.limit(0).summary(true),attachments{media,type,url,subattachments{media,type,url}}';
+  'id,message,created_time,from{id,name,link},full_picture,shares,reactions.limit(0).summary(true),comments.limit(0).summary(true),attachments{media,type,url,title,description,subattachments{media,type,url,title,description}}';
 
 /** Quét 1 trang feed (100 bài/lượt); truyền `nextUrl` (từ lần trước) để lấy trang kế tiếp. */
 export async function fetchPagePostsPage(opts: {
@@ -92,6 +106,8 @@ export async function fetchPagePostsPage(opts: {
       comments: post.comments?.summary?.total_count ?? 0,
       shares: post.shares?.count ?? 0,
       image,
+      permalinkUrl: `https://www.facebook.com/${post.id}`,
+      attachments: post.attachments?.data ?? [],
     };
   });
   return { posts, nextUrl: data?.paging?.next };

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
 import { LinkVideoModal, PickerModal, SelectorRow } from '@/components/AdPostTool';
 import { ResultList, ToolGate } from '@/components/tool';
@@ -25,6 +25,8 @@ import {
 } from '@/lib/fb/swipeUpVideo';
 import { uploadAdVideo } from '@/lib/fb/videoCarousel';
 import { uploadAdVideoFromLink } from '@/lib/fb/videoFromLink';
+import { commentWithToken } from '@/lib/fb/reels';
+import type { LocalFile } from '@/lib/fb/Group';
 import { useT } from '@/lib/i18n';
 import { pickMedia as chooseMedia } from '@/lib/pickMedia';
 
@@ -172,6 +174,9 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
   const [primaryText, setPrimaryText] = useState('');
   const [creating, setCreating] = useState(false);
   const [posts, setPosts] = useState<PostRow[]>([]);
+  const [commentOn, setCommentOn] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [commentPhoto, setCommentPhoto] = useState<LocalFile | null>(null);
 
   const create = async () => {
     const selected = pages.filter((p) => selectedPageIds.includes(p.id));
@@ -212,6 +217,9 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
           });
           const storyId = await getCreativeStoryId(creativeId, token);
           await publishSwipeUpStory(storyId, page.access_token);
+          if (commentOn && (commentText.trim() || commentPhoto)) {
+            await commentWithToken(storyId, page.access_token, commentText, commentPhoto).catch(() => {});
+          }
           setPosts((prev) => prev.map((r) => (r.pageId === page.id ? { ...r, status: 'done', note: storyId } : r)));
         } catch (e) {
           setPosts((prev) => prev.map((r) => (r.pageId === page.id ? { ...r, status: 'error', note: describeError(e) } : r)));
@@ -407,6 +415,36 @@ function Runner({ dtsg, fbId }: { dtsg: string; fbId: string }) {
             <Label>{t('swipeUp.contentSection')}</Label>
             <Field label={t('swipeUp.headline')} value={headline} onChangeText={setHeadline} placeholder={t('swipeUp.headlinePh')} />
             <Field label={t('swipeUp.message')} value={primaryText} onChangeText={setPrimaryText} multiline placeholder={t('swipeUp.messagePh')} />
+            <View style={{ gap: 8 }}>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Body weight="600" size={14}>{t('adPost.commentAfterLabel')}</Body>
+                <Switch value={commentOn} onValueChange={setCommentOn} trackColor={{ true: c.accent }} />
+              </Row>
+              {commentOn ? (
+                <>
+                  <Field value={commentText} onChangeText={setCommentText} multiline placeholder={t('gp.commentPh')} />
+                  {commentPhoto ? (
+                    <View style={{ alignSelf: 'flex-start' }}>
+                      <Image source={{ uri: commentPhoto.uri }} style={{ width: 72, height: 72, borderRadius: radius.sm }} />
+                      <Pressable onPress={() => setCommentPhoto(null)} hitSlop={6}
+                        style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="close" size={13} color="#fff" />
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Pressable
+                      onPress={async () => {
+                        const [a] = await chooseMedia('image', false);
+                        if (a) setCommentPhoto({ uri: a.uri, name: a.name, type: a.mimeType ?? 'image/jpeg' });
+                      }}
+                      style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.sm, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.accent, backgroundColor: c.accentSoft }}>
+                      <Ionicons name="image-outline" size={16} color={c.accent} />
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: c.accent }}>{t('gp.commentAddPhoto')}</Text>
+                    </Pressable>
+                  )}
+                </>
+              ) : null}
+            </View>
           </Card>
 
           {error ? <Body color={c.danger} size={13}>{error}</Body> : null}

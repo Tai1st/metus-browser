@@ -6,7 +6,6 @@ import { ActivityIndicator, Image, Pressable, Switch, Text, TextInput, View } fr
 import { DateTimePickerModal, PickerModal, SelectorRow, fmtDateTime } from '@/components/AdPostTool';
 import { showDialog } from '@/components/Dialog';
 import { BulkScheduleSection, reschedule, useBulkSchedule } from '@/components/bulkSchedule';
-import { PURPLE } from '@/components/cycle';
 import { StepField, TickBox } from '@/components/groupPost';
 import { ToolGate } from '@/components/tool';
 import { Badge, Body, Card, Field, Label, Row, Screen, radius, shadow, useColors } from '@/components/ui';
@@ -76,13 +75,13 @@ function ReelCard({ r, disabled, onTitle, onSchedule, onPickTime, onDelete }: {
             <Badge text={t(`reels.st.${r.status}`)} tone={tone} />
             <Row gap={4}>
               <Text style={{ fontSize: 11.5, color: c.muted }}>{t('reels.schedule')}</Text>
-              <Switch value={r.isSchedule} disabled={locked} onValueChange={onSchedule} trackColor={{ true: PURPLE }} style={{ transform: [{ scale: 0.8 }] }} />
+              <Switch value={r.isSchedule} disabled={locked} onValueChange={onSchedule} trackColor={{ true: c.accent }} style={{ transform: [{ scale: 0.8 }] }} />
             </Row>
           </Row>
           {r.isSchedule && r.scheduledTime ? (
             <Pressable disabled={locked} onPress={onPickTime} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="calendar-outline" size={13} color={PURPLE} />
-              <Text style={{ fontSize: 12, fontWeight: '600', color: PURPLE }}>{fmtDateTime(new Date(r.scheduledTime))}</Text>
+              <Ionicons name="calendar-outline" size={13} color={c.accent} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: c.accent }}>{fmtDateTime(new Date(r.scheduledTime))}</Text>
             </Pressable>
           ) : null}
           {r.error ? <Text numberOfLines={3} style={{ fontSize: 11, color: c.danger }}>{r.error}</Text> : null}
@@ -347,26 +346,26 @@ function Runner({ user }: { user: MetusUser | null }) {
         </View>
 
         <Pressable onPress={runBulk} disabled={busy}
-          style={({ pressed }) => [{ backgroundColor: '#f97316', borderRadius: radius.md, paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, opacity: busy ? 0.6 : pressed ? 0.85 : 1 }, shadow(c, 1)]}>
-          {running ? <ActivityIndicator color="#fff" /> : null}
-          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>{running ? t('reels.running') : t('reels.runBulk')}</Text>
+          style={({ pressed }) => [{ backgroundColor: c.accent, borderRadius: radius.md, paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, opacity: busy ? 0.6 : pressed ? 0.85 : 1 }, shadow(c, 1)]}>
+          {running ? <ActivityIndicator color={c.onAccent} /> : null}
+          <Text style={{ color: c.onAccent, fontWeight: '800', fontSize: 15 }}>{running ? t('reels.running') : t('reels.runBulk')}</Text>
         </Pressable>
       </Card>
 
       {/* ========== Thêm video ========== */}
       <Card>
         <Pressable onPress={pickFiles} disabled={busy}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: radius.md, backgroundColor: busy ? c.faint : '#f97316' }}>
-          {importing ? <ActivityIndicator color="#fff" /> : <Ionicons name="cloud-upload-outline" size={18} color="#fff" />}
-          <Text style={{ color: '#fff', fontWeight: '800' }}>{importing ? t('reels.uploading') : t('reels.upload')}</Text>
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: radius.md, backgroundColor: busy ? c.faint : c.accent }}>
+          {importing ? <ActivityIndicator color={c.onAccent} /> : <Ionicons name="cloud-upload-outline" size={18} color={c.onAccent} />}
+          <Text style={{ color: c.onAccent, fontWeight: '800' }}>{importing ? t('reels.uploading') : t('reels.upload')}</Text>
         </Pressable>
         <Field value={videoUrl} onChangeText={setVideoUrl} editable={!importing} autoCapitalize="none" keyboardType="url" placeholder={t('reels.linkPh')}
           icon="link-outline" rightIcon={importing ? 'stop-circle' : 'cloud-download-outline'}
           onRightIconPress={importing ? () => (stopImportRef.current = true) : importLink} />
-        <View style={{ padding: 10, borderRadius: radius.sm, borderWidth: 1, borderColor: '#fed7aa', backgroundColor: 'rgba(249,115,22,0.08)' }}>
+        <View style={{ padding: 10, borderRadius: radius.sm, borderWidth: 1, borderColor: c.accent, backgroundColor: c.accentSoft }}>
           <Text style={{ fontSize: 12.5, color: c.text, lineHeight: 18 }}>
-            <Text style={{ fontWeight: '800', color: '#ea580c' }}>{t('reels.notePrefix')} </Text>
-            {t('reels.channelHint')} {t('reels.freeNote')} <Text style={{ fontWeight: '800', color: '#ea580c' }}>{FREE_SUFFIX}</Text> {t('reels.freeNoteSuffix')}
+            <Text style={{ fontWeight: '800', color: c.accentDeep }}>{t('reels.notePrefix')} </Text>
+            {t('reels.channelHint')} {t('reels.freeNote')} <Text style={{ fontWeight: '800', color: c.accentDeep }}>{FREE_SUFFIX}</Text> {t('reels.freeNoteSuffix')}
           </Text>
         </View>
         {quota.length ? (

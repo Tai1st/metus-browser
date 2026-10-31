@@ -270,9 +270,9 @@ export async function importJson(t: (k: string) => string): Promise<unknown[] | 
   }
 }
 
-export function SmallBtn({ icon, label, tone, onPress, disabled }: { icon: IconName; label: string; tone: 'amber' | 'emerald' | 'green' | 'blue'; onPress: () => void; disabled?: boolean }) {
-  const col = { amber: '#d97706', emerald: '#059669', green: '#16a34a', blue: '#2563eb' }[tone];
-  const bgc = { amber: 'rgba(245,158,11,0.10)', emerald: 'rgba(16,185,129,0.10)', green: 'rgba(34,197,94,0.10)', blue: 'rgba(59,130,246,0.10)' }[tone];
+export function SmallBtn({ icon, label, tone, onPress, disabled }: { icon: IconName; label: string; tone: 'amber' | 'emerald' | 'green' | 'blue' | 'red'; onPress: () => void; disabled?: boolean }) {
+  const col = { amber: '#d97706', emerald: '#059669', green: '#16a34a', blue: '#2563eb', red: '#dc2626' }[tone];
+  const bgc = { amber: 'rgba(245,158,11,0.10)', emerald: 'rgba(16,185,129,0.10)', green: 'rgba(34,197,94,0.10)', blue: 'rgba(59,130,246,0.10)', red: 'rgba(220,38,38,0.10)' }[tone];
   return (
     <Pressable onPress={onPress} disabled={disabled}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 7, borderWidth: 1, borderColor: col, backgroundColor: bgc, opacity: disabled ? 0.4 : 1 }}>

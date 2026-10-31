@@ -2,6 +2,8 @@
 // (AdCreatives.ts + FbVideoCarousel.ts). Upload ảnh/video từ máy, tạo adcreative
 // 2 thẻ rồi publish lên Page. Dùng Metus native HTTP (compat.exFetch/instance).
 import { exFetch, instance } from './compat';
+import type { LocalFile } from './Group';
+import { commentWithToken } from './reels';
 
 const GRAPH = 'https://graph.facebook.com';
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -73,6 +75,20 @@ export async function uploadAdVideo(adAccountId: string, token: string, file: Pi
   if (!videoId) throw new Error('Upload video thất bại');
   const thumbnails = await waitVideoThumbnails(videoId, token);
   return { videoId, picture: thumbnails[0]?.url ?? '', thumbnails };
+}
+
+/** Upload video thẳng từ URL (Facebook tự tải, không cần app tải về máy) — dùng để clone video từ bài viết khác. */
+export async function uploadAdVideoFromUrl(adAccountId: string, token: string, fileUrl: string): Promise<{ videoId: string; picture: string }> {
+  const data = await exFetch<{ id?: string; error?: { message?: string } }>(`${GRAPH}/v21.0/${adAccountId}/advideos`, {
+    method: 'POST',
+    body: { file_url: fileUrl },
+    params: { access_token: token },
+    headers: { 'Content-Type': 'application/json' },
+  }, 120000);
+  const videoId = data?.id;
+  if (!videoId) throw new Error(data?.error?.message ?? 'Upload video thất bại');
+  const picture = await waitVideoThumbnail(videoId, token);
+  return { videoId, picture };
 }
 
 /** Đợi Facebook xử lý video và trả ảnh bìa (thumbnail ưu tiên, hoặc `picture`). */
@@ -174,6 +190,9 @@ export interface CreateCarouselParams {
   cards: CardData[];
   watermark?: boolean;
   like?: boolean;
+  /** Bình luận sau khi đăng (bỏ trống nếu không bật). */
+  commentText?: string;
+  commentPhoto?: LocalFile | null;
   /** Unix time (giây) để hẹn lịch; bỏ trống = đăng ngay. */
   scheduleUnix?: number;
   /** Tiến độ 0..1 của bài trên Page này (để hiện thanh %). */
@@ -181,7 +200,7 @@ export interface CreateCarouselParams {
 }
 
 /** Like bài vừa đăng bằng page access token (best-effort). */
-async function likePost(postId: string, pageAccessToken: string): Promise<void> {
+export async function likePost(postId: string, pageAccessToken: string): Promise<void> {
   await exFetch(`${GRAPH}/${postId}/likes?metuscors=0`, {
     method: 'POST',
     params: { access_token: pageAccessToken },
@@ -321,6 +340,13 @@ export async function createCarouselPost(p: CreateCarouselParams): Promise<strin
       await likePost(effectiveId, p.page.access_token);
     } catch {
       // like lỗi thì bỏ qua, bài vẫn đã đăng
+    }
+  }
+  if ((p.commentText?.trim() || p.commentPhoto) && !p.hidePost) {
+    try {
+      await commentWithToken(effectiveId, p.page.access_token, p.commentText ?? '', p.commentPhoto);
+    } catch {
+      // bình luận lỗi thì bỏ qua, bài vẫn đã đăng
     }
   }
   p.onProgress?.(1);

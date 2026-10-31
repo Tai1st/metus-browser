@@ -16,8 +16,10 @@ const GRAPH = 'https://graph.facebook.com/v21.0';
 
 const decodeHtml = (s: string) =>
   s
+    // entity số (thập phân &#1234; hoặc hex &#x1F386;) — tiêu đề video TikTok hay có emoji.
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
     .replace(/&amp;/g, '&')
-    .replace(/&#x2F;/gi, '/')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, '<')

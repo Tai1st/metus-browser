@@ -49,6 +49,9 @@ export interface GroupItem {
   name: string;
   picture?: string;
   isAdmin: boolean;
+  url?: string;
+  /** Unix giây của bài đăng gần nhất trong nhóm (0 nếu không có). */
+  lastPostTime?: number;
 }
 
 /** Nhóm của user (admin + thành viên) — useGetGroups của metus-few. Có pageId → nhóm của Page (i_user). */
@@ -65,11 +68,40 @@ export async function getGroups(dtsg: string, fbId: string, pageId?: string): Pr
       name: String(e?.node?.name ?? ''),
       picture: e?.node?.profile_picture?.uri,
       isAdmin,
+      url: e?.node?.url,
+      lastPostTime: e?.node?.last_post_time,
     }));
   const admin = map(json?.data?.adminGroups?.groups_tab?.tab_groups_list?.edges, true);
   const member = map(json?.data?.nonAdminGroups?.groups_tab?.tab_groups_list?.edges, false);
   const seen = new Set<string>();
   return [...admin, ...member].filter((g) => g.id && !seen.has(g.id) && seen.add(g.id));
+}
+
+/** true nếu phản hồi `leaveGroup` cho thấy đã rời nhóm thành công (port isLeaveGroupSuccess của metus-few). */
+function isLeaveGroupSuccess(res: any): boolean {
+  if (res?.data?.group_leave?.did_leave === true) return true;
+  if (res?.data?.group_leave?.group?.is_viewer_member === false) return true;
+  if (res?.data?.group_leave?.group?.viewer_join_state === 'CAN_JOIN') return true;
+  if (!res?.errors?.length && !res?.data?.error) return true;
+  return false;
+}
+
+/** Rời 1 nhóm. */
+export async function leaveGroup(dtsg: string, fbId: string, groupId: string): Promise<boolean> {
+  const variables = {
+    input: { group_id: groupId, readd_policy: 'ALLOW_READD', source: 'comet_group_page', actor_id: fbId, client_mutation_id: '1' },
+    groupID: groupId,
+  };
+  const form = new FormData();
+  form.append('fb_dtsg', dtsg);
+  form.append('__user', fbId);
+  form.append('__a', '1');
+  form.append('fb_api_req_friendly_name', 'useGroupLeaveMutation');
+  form.append('server_timestamps', 'true');
+  form.append('variables', JSON.stringify(variables));
+  form.append('doc_id', '2018579381571489');
+  const json = await graphql(form);
+  return isLeaveGroupSuccess(json);
 }
 
 export interface PageProfile {
@@ -672,5 +704,258 @@ export async function declinePendingPost(p: { dtsg: string; fbId: string; groupI
   form.append('variables', JSON.stringify(variables));
   form.append('server_timestamps', 'true');
   form.append('doc_id', '26192300283730906');
+  await graphql(form);
+}
+
+export interface SpamPost {
+  id: string;
+  postId: string;
+  memberId: string;
+  memberName: string;
+  createdTime: number;
+  content: string;
+  attachment: { type: 'unavailable' | 'photo' | 'link'; title?: string } | null;
+}
+
+/** Trang bài trong hàng chờ spam của nhóm (admin/mod — "Thư mục xem xét"); truyền `cursor` để lấy trang kế tiếp. */
+export async function getSpamPosts(dtsg: string, fbId: string, groupId: string, cursor?: string): Promise<{ posts: SpamPost[]; nextCursor?: string }> {
+  const form = new FormData();
+  form.append('fb_dtsg', dtsg);
+  form.append('av', fbId);
+  form.append('__user', fbId);
+  form.append('__a', '1');
+  let docId: string;
+  let variables: any;
+  if (!cursor) {
+    docId = '6749564451792941';
+    variables = {
+      UFI2CommentsProvider_commentsKey: 'GroupsCometModminReviewFolderRootQuery',
+      contentType: null, currentSection: 'MODMIN_REVIEW_FOLDER', feedbackSource: 0,
+      feedLocation: 'GROUPS_MODMIN_REVIEW_FOLDER', groupID: groupId,
+      privacySelectorRenderLocation: 'COMET_STREAM', pro_tip_surface: 'SPAM_QUEUE',
+      renderLocation: 'groups_modmin_review_folder', scale: 1.5,
+      __relay_internal__pv__IsWorkUserrelayprovider: false,
+      __relay_internal__pv__IsMergQAPollsrelayprovider: false,
+      __relay_internal__pv__CometUFIIsRTAEnabledrelayprovider: false,
+      __relay_internal__pv__StoriesArmadilloReplyEnabledrelayprovider: true,
+      __relay_internal__pv__StoriesRingrelayprovider: false,
+    };
+  } else {
+    docId = '6809508899125363';
+    variables = {
+      UFI2CommentsProvider_commentsKey: 'GroupsCometModminReviewFolderRootQuery',
+      contentType: null, count: 30, cursor,
+      displayCommentsContextEnableComment: null, displayCommentsContextIsAdPreview: null,
+      displayCommentsContextIsAggregatedShare: null, displayCommentsContextIsStorySet: null,
+      displayCommentsFeedbackContext: null, feedLocation: 'GROUPS_MODMIN_REVIEW_FOLDER', feedbackSource: 0,
+      focusCommentID: null, privacySelectorRenderLocation: 'COMET_STREAM', renderLocation: 'groups_modmin_review_folder',
+      scale: 1.5, useDefaultActor: false, id: groupId,
+      __relay_internal__pv__IsWorkUserrelayprovider: false,
+      __relay_internal__pv__IsMergQAPollsrelayprovider: false,
+      __relay_internal__pv__CometUFIIsRTAEnabledrelayprovider: false,
+      __relay_internal__pv__StoriesArmadilloReplyEnabledrelayprovider: true,
+      __relay_internal__pv__StoriesRingrelayprovider: false,
+    };
+  }
+  form.append('variables', JSON.stringify(variables));
+  form.append('doc_id', docId);
+  const json = await graphql(form);
+  const stories = json?.data?.group?.modmin_review_folder;
+  const edges: any[] = stories?.edges ?? [];
+  const nextCursor: string | undefined = stories?.page_info?.end_cursor;
+
+  const posts: SpamPost[] = edges.map((edge) => {
+    const node = edge.node;
+    const actor = node?.actors?.[0] ?? node?.comet_sections?.content?.story?.actors?.[0];
+    let createdTime = 0;
+    const metadataList: any[] = node?.comet_sections?.context_layout?.story?.comet_sections?.metadata ?? [];
+    for (const meta of metadataList) {
+      if (meta.__typename === 'CometFeedStoryMinimizedTimestampStrategy') {
+        createdTime = meta.story?.creation_time ?? 0;
+        break;
+      }
+    }
+    const content = node?.comet_sections?.content?.story?.message?.text ?? '';
+    let attachment: SpamPost['attachment'] = null;
+    const attachments: any[] = node?.comet_sections?.content?.story?.attachments ?? [];
+    if (attachments.length) {
+      const typename = attachments[0].styles?.__typename;
+      if (typename === 'StoryAttachmentUnavailableStyleRenderer') {
+        attachment = { type: 'unavailable', title: attachments[0].styles.attachment?.title_with_entities?.text ?? '' };
+      } else if (typename === 'StoryAttachmentPhotoStyleRenderer') {
+        attachment = { type: 'photo' };
+      } else if (typename === 'StoryAttachmentLinkStyleRenderer') {
+        attachment = { type: 'link' };
+      }
+    }
+    return { id: node.id, postId: node.post_id, memberId: actor?.id ?? '', memberName: actor?.name ?? '', createdTime, content, attachment };
+  });
+  return { posts, nextCursor };
+}
+
+/** Xóa (từ chối) một bài trong hàng chờ spam của nhóm. */
+export async function deleteSpamPost(p: { dtsg: string; fbId: string; groupId: string; storyId: string; memberId: string }): Promise<void> {
+  const variables = {
+    input: { action_source: 'GROUP_MODMIN_REVIEW_FOLDER', group_id: p.groupId, story_id: p.storyId, actor_id: p.fbId, client_mutation_id: '1' },
+    contentType: 'GROUP_COMMENT',
+    member_id: p.memberId,
+  };
+  const form = new FormData();
+  form.append('fb_dtsg', p.dtsg);
+  form.append('__user', p.fbId);
+  form.append('__a', '1');
+  form.append('variables', JSON.stringify(variables));
+  form.append('doc_id', '6146831055349172');
+  await graphql(form);
+}
+
+// ───────────────────────────── Xóa bài đăng nhóm (feed) ─────────────────────────────
+
+export type GroupFeedPostType = 'photo' | 'link' | 'media_set' | 'video' | 'text' | 'others';
+
+export interface GroupFeedPost {
+  /** post_id dùng để xóa (deleteGroupPost). */
+  id: string;
+  type: GroupFeedPostType;
+  authorName: string;
+  authorAvatar: string;
+  createdTime: number;
+  content: string;
+  likes: number;
+  comments: number;
+  shares: number;
+  image: string | null;
+}
+
+/** Phản hồi "streaming": nhiều dòng JSON, mỗi dòng 1 object { data: ... } — khác hẳn phản hồi 1 object thường. */
+function parseGroupFeedResponse(raw: string): { nodes: any[]; nextCursor?: string; hasNextPage: boolean } {
+  const nodes: any[] = [];
+  let nextCursor: string | undefined;
+  let hasNextPage = false;
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue;
+    let obj: any;
+    try {
+      obj = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const data = obj?.data;
+    if (!data) continue;
+    if (data.node?.__typename === 'Story') nodes.push(data.node);
+    const edges: any[] | undefined = data?.group?.group_feed?.edges ?? data?.node?.group_feed?.edges;
+    if (edges) for (const e of edges) if (e?.node?.__typename === 'Story') nodes.push(e.node);
+    const pageInfo = data?.page_info ?? data?.group?.group_feed?.page_info ?? data?.node?.group_feed?.page_info;
+    if (pageInfo) {
+      nextCursor = pageInfo.end_cursor ?? undefined;
+      hasNextPage = !!pageInfo.has_next_page;
+    }
+  }
+  return { nodes, nextCursor, hasNextPage };
+}
+
+function nodeToGroupFeedPost(node: any): GroupFeedPost {
+  const actor = node?.actors?.[0] ?? node?.comet_sections?.context_layout?.story?.comet_sections?.actor_photo?.story?.actors?.[0] ?? {};
+  let createdTime = 0;
+  const metadata: any[] = node?.comet_sections?.context_layout?.story?.comet_sections?.metadata ?? [];
+  const timeMeta = metadata.find((m) => m?.story?.creation_time);
+  if (timeMeta) createdTime = timeMeta.story.creation_time;
+  const content = node?.comet_sections?.content?.story?.message?.text ?? node?.comet_sections?.content?.story?.rich_message?.[0]?.text ?? '';
+  const attachments: any[] | undefined = node?.comet_sections?.content?.story?.attachments;
+  let image: string | null = null;
+  if (attachments?.length) {
+    const media = attachments[0]?.styles?.attachment?.media;
+    image = media?.viewer_image?.uri ?? media?.placeholder_image?.uri ?? media?.photo_image?.uri ?? null;
+  }
+  let type: GroupFeedPostType = 'others';
+  const styleType = attachments?.[0]?.styles?.__typename;
+  if (styleType === 'StoryAttachmentPhotoStyleRenderer') type = 'photo';
+  else if (styleType === 'StoryAttachmentVideoStyleRenderer') type = 'video';
+  else if (styleType === 'StoryAttachmentMediaSetStyleRenderer') type = 'media_set';
+  else if (styleType === 'StoryAttachmentLinkStyleRenderer') type = 'link';
+  else if (!attachments?.length) type = 'text';
+  const feedbackContext = node?.comet_sections?.feedback?.story?.story_ufi_container?.story?.feedback_context;
+  const feedback = feedbackContext?.feedback_target_with_context?.comet_ufi_summary_and_actions_renderer?.feedback
+    ?? feedbackContext?.comet_ufi_summary_and_actions_renderer?.feedback;
+  return {
+    id: node.post_id,
+    type,
+    authorName: actor?.name ?? '',
+    authorAvatar: actor?.profile_picture?.uri ?? '',
+    createdTime,
+    content,
+    likes: feedback?.reaction_count?.count ?? 0,
+    comments: feedback?.comments_count_summary_renderer?.feedback?.comment_rendering_instance?.comments?.total_count ?? 0,
+    shares: feedback?.share_count?.count ?? 0,
+    image,
+  };
+}
+
+/** Trang feed (thảo luận, theo thời gian) của nhóm; truyền `cursor` để lấy trang kế tiếp. */
+export async function getGroupFeedPosts(dtsg: string, fbId: string, groupId: string, cursor?: string): Promise<{ posts: GroupFeedPost[]; nextCursor?: string; hasNextPage: boolean }> {
+  const common = {
+    feedLocation: 'GROUP', feedType: 'DISCUSSION', feedbackSource: 0, focusCommentID: null,
+    privacySelectorRenderLocation: 'COMET_STREAM', renderLocation: 'group', scale: 2, sortingSetting: 'CHRONOLOGICAL',
+    __relay_internal__pv__GHLShouldChangeAdIdFieldNamerelayprovider: false,
+    __relay_internal__pv__GHLShouldChangeSponsoredDataFieldNamerelayprovider: false,
+    __relay_internal__pv__IsWorkUserrelayprovider: false,
+    __relay_internal__pv__CometFeedStoryDynamicResolutionPhotoAttachmentRenderer_experimentWidthrelayprovider: 500,
+    __relay_internal__pv__CometImmersivePhotoCanUserDisable3DMotionrelayprovider: false,
+    __relay_internal__pv__WorkCometIsEmployeeGKProviderrelayprovider: false,
+    __relay_internal__pv__IsMergQAPollsrelayprovider: false,
+    __relay_internal__pv__FBReelsMediaFooter_comet_enable_reels_ads_gkrelayprovider: false,
+    __relay_internal__pv__CometUFIReactionsEnableShortNamerelayprovider: false,
+    __relay_internal__pv__CometUFIShareActionMigrationrelayprovider: true,
+    __relay_internal__pv__StoriesArmadilloReplyEnabledrelayprovider: true,
+  };
+  let docId: string;
+  let variables: any;
+  if (!cursor) {
+    docId = '9165830940160555';
+    variables = {
+      ...common, autoOpenChat: false, creative_provider_id: null, groupID: groupId, hasHoistStories: false,
+      hoistedSectionHeaderType: 'notifications', hoistStories: [], hoistStoriesCount: 0, regular_stories_count: 1,
+      regular_stories_stream_initial_count: 1, shouldDeferMainFeed: false, threadID: '', useDefaultActor: false,
+      __relay_internal__pv__GroupsCometLazyLoadFeaturedSectionrelayprovider: false,
+      __relay_internal__pv__EventCometCardImage_prefetchEventImagerelayprovider: false,
+      __relay_internal__pv__GroupsCometGroupChatLazyLoadLastMessageSnippetrelayprovider: false,
+    };
+  } else {
+    docId = '28864584756488524';
+    variables = {
+      ...common, count: 20, cursor, stream_initial_count: 1, useDefaultActor: false, id: groupId,
+      __relay_internal__pv__EventCometCardImage_prefetchEventImagerelayprovider: false,
+    };
+  }
+  const form = new FormData();
+  form.append('av', fbId);
+  form.append('__user', fbId);
+  form.append('__a', '1');
+  form.append('fb_dtsg', dtsg);
+  form.append('variables', JSON.stringify(variables));
+  form.append('server_timestamps', 'true');
+  form.append('doc_id', docId);
+  const { data } = await instance.post<string>('https://www.facebook.com/api/graphql/?metuscors=0', form, {
+    responseType: 'text',
+    transformResponse: (r) => r,
+  });
+  const { nodes, nextCursor, hasNextPage } = parseGroupFeedResponse(data);
+  return { posts: nodes.map(nodeToGroupFeedPost), nextCursor, hasNextPage };
+}
+
+/** Xóa 1 bài đăng trong nhóm (cần quyền admin/mod với bài không phải của mình). */
+export async function deleteGroupPost(dtsg: string, fbId: string, groupId: string, postId: string): Promise<void> {
+  const storyId = btoa(`S:_I${fbId}:VK:${postId}`);
+  const variables = {
+    input: {
+      story_id: storyId, source: 'group_mall', share_feedback: false, group_id: groupId,
+      client_mutation_id: 'SSoKhXY1-uigN-KbMt-IVC3-uLHb3CiuwVPT', admin_notes: 'metus.vn', actor_id: fbId,
+    },
+    post_id: storyId,
+  };
+  const form = new FormData();
+  form.append('fb_dtsg', dtsg);
+  form.append('variables', JSON.stringify(variables));
+  form.append('doc_id', '3967628089995602');
   await graphql(form);
 }
