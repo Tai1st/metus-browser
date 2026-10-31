@@ -56,7 +56,16 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    configureNetwork();
+    // CHẨN ĐOÁN TẠM (nhánh experiment/expo-sdk55-ios15): app crash ngay lúc mở
+    // trên iOS, đúng thời điểm gọi configureNetwork() -> Metus.http.configure()
+    // (lệnh gọi native sync đầu tiên của app). Bọc try/catch để biết lỗi có lọt
+    // qua được JS hay không (crash cứng ở native thì sẽ không bắt được, nhưng
+    // vẫn đáng thử trước khi tắt hẳn lệnh gọi này).
+    try {
+      configureNetwork();
+    } catch (e) {
+      console.error('[configureNetwork] lỗi', e);
+    }
     hydrateStorage()
       .catch(() => {})
       .finally(() => {
