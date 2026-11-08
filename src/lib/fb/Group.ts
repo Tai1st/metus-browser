@@ -959,3 +959,188 @@ export async function deleteGroupPost(dtsg: string, fbId: string, groupId: strin
   form.append('doc_id', '3967628089995602');
   await graphql(form);
 }
+
+// ───────────────────────────── Quản lý nhóm (Admin) ─────────────────────────────
+// Port từ metus-few features/tools/group/admin-groups-manager + phần tương ứng
+// trong services/facebook/Group.ts. 3/5 hành động của bản gốc có API thật
+// (removePreapproval, unblockMember, getMemberPosts+deleteMemberPost) — 2 hành
+// động còn lại ("Xoá bình luận thành viên", "Xoá toàn bộ mod & admin") trong
+// bản gốc chỉ là mục hiện mờ, chưa có request thật (code bản gốc còn ghi chú
+// "Chưa có request thật từ Facebook để implement") — KHÔNG port 2 mục đó.
+
+export interface AdminMember {
+  id: string;
+  name: string;
+  avatar?: string;
+}
+
+/** Thành viên nhóm theo trạng thái (PREAPPROVED/BLOCKED) — dùng chung 1 doc_id cho cả 2 filter. */
+async function getGroupMembersByStatus(
+  dtsg: string,
+  fbId: string,
+  groupId: string,
+  statusStaticFilter: 'PREAPPROVED' | 'BLOCKED' | 'ALL_STATUSES',
+  opts: { cursor?: string | null; count?: number; search?: string | null; docId?: string; friendlyName?: string } = {},
+): Promise<{ members: AdminMember[]; nextCursor: string | null }> {
+  const { cursor = null, count = 150, search = null, docId = '6708144532623603', friendlyName } = opts;
+  const form = new FormData();
+  form.append('__user', fbId);
+  form.append('av', fbId);
+  form.append('fb_dtsg', dtsg);
+  if (friendlyName) {
+    form.append('__comet_req', '15');
+    form.append('fb_api_req_friendly_name', friendlyName);
+  }
+  form.append('variables', JSON.stringify({ count, cursor, groupID: groupId, membershipType: 'ALL', scale: 1.5, search, statusStaticFilter, id: groupId }));
+  form.append('doc_id', docId);
+  const json = await graphql(form);
+  const node = json?.data?.node;
+  const list =
+    node?.people_profiles ??
+    node?.if_viewer_can_see_group_people_profiles_people_list?.people_profiles_member_membership_type ??
+    node?.if_viewer_cannot_see_group_people_profiles_people_list?.forum_member_profiles;
+  const edges: any[] = list?.edges ?? [];
+  const members: AdminMember[] = edges
+    .map((e): AdminMember | null => (e?.node?.id && e?.node?.name ? { id: e.node.id, name: e.node.name, avatar: e.node.profile_picture?.uri } : null))
+    .filter((m): m is AdminMember => !!m);
+  // has_next_page có thể false dù còn trang kế tiếp (xác nhận từ metus-few) — chỉ dừng khi hết cursor hoặc trang rỗng.
+  const nextCursor: string | null = edges.length > 0 ? (list?.page_info?.end_cursor ?? null) : null;
+  return { members, nextCursor };
+}
+
+export const getPreapprovedMembers = (dtsg: string, fbId: string, groupId: string, cursor?: string | null) =>
+  getGroupMembersByStatus(dtsg, fbId, groupId, 'PREAPPROVED', { cursor });
+
+export const getBlockedMembers = (dtsg: string, fbId: string, groupId: string, cursor?: string | null) =>
+  getGroupMembersByStatus(dtsg, fbId, groupId, 'BLOCKED', { cursor });
+
+export const searchMembersByName = (dtsg: string, fbId: string, groupId: string, search: string, cursor?: string | null) =>
+  getGroupMembersByStatus(dtsg, fbId, groupId, 'ALL_STATUSES', { search, cursor, docId: '7476793605677044', friendlyName: 'GroupsCometPeopleListQuery' });
+
+/** Dừng phê duyệt trước bài viết (Remove Preapproved) — dùng member (actor) id, không phải membership id. */
+export async function removePreapproval(dtsg: string, fbId: string, groupId: string, memberId: string): Promise<void> {
+  const form = new FormData();
+  form.append('__user', fbId);
+  form.append('av', fbId);
+  form.append('fb_dtsg', dtsg);
+  form.append('variables', JSON.stringify({
+    groupID: groupId, memberID: memberId,
+    input: { group_id: groupId, member: memberId, source: 'MEMBER_LIST', actor_id: fbId, client_mutation_id: '2' },
+    scale: 1.5,
+  }));
+  form.append('doc_id', '7117328055052383');
+  const json = await graphql(form);
+  if (!json?.data?.group_untrust_member?.group?.id) throw new Error(json?.errors?.[0]?.message ?? 'Facebook không xác nhận gỡ phê duyệt trước.');
+}
+
+/** Mở chặn (Unblock) 1 thành viên khỏi nhóm. */
+export async function unblockMember(dtsg: string, fbId: string, groupId: string, memberId: string): Promise<void> {
+  const form = new FormData();
+  form.append('__user', fbId);
+  form.append('av', fbId);
+  form.append('fb_dtsg', dtsg);
+  form.append('variables', JSON.stringify({
+    input: { group_id: groupId, source: 'member_list', user_id: memberId, actor_id: fbId, client_mutation_id: '1' },
+    memberID: memberId, groupID: groupId, scale: 1.5, isHovercardProfile: false,
+  }));
+  form.append('doc_id', '7513362062054002');
+  const json = await graphql(form);
+  if (!json?.data?.group_unblock_user?.group?.id) throw new Error(json?.errors?.[0]?.message ?? 'Facebook không xác nhận mở chặn.');
+}
+
+export interface MemberPost {
+  id: string;
+  /** story_id base64 (node.id) — dùng cho deleteMemberPost, khác với id (post_id số) dùng để hiển thị/link. */
+  storyId: string;
+  title: string;
+  thumbnail?: string;
+}
+
+/** Bài viết của 1 thành viên trong nhóm (panel "Xoá bài viết thành viên"). */
+export async function getMemberPosts(dtsg: string, fbId: string, groupId: string, memberId: string, cursor?: string | null): Promise<{ posts: MemberPost[]; nextCursor: string | null }> {
+  const form = new FormData();
+  form.append('av', fbId);
+  form.append('__user', fbId);
+  form.append('fb_dtsg', dtsg);
+  form.append('__comet_req', '15');
+  form.append('fb_api_req_friendly_name', 'ProfileCometContextualProfileGroupPostsFeedPaginationQuery');
+  form.append('variables', JSON.stringify({
+    feedCursor: cursor ?? null, feedLocation: 'GROUP_MEMBER_BIO_FEED', feedbackSource: null, focusCommentID: null,
+    memberID: memberId, postsToLoad: 50, privacySelectorRenderLocation: 'COMET_STREAM', renderLocation: 'group_bio',
+    scale: 1.5, useDefaultActor: false, id: groupId,
+    __relay_internal__pv__IsWorkUserrelayprovider: false,
+    __relay_internal__pv__IsMergQAPollsrelayprovider: false,
+    __relay_internal__pv__CometUFIReactionsEnableShortNamerelayprovider: false,
+    __relay_internal__pv__StoriesArmadilloReplyEnabledrelayprovider: false,
+    __relay_internal__pv__StoriesRingrelayprovider: false,
+  }));
+  form.append('doc_id', '7530983066965505');
+  const json = await graphql(form);
+
+  const findPostContainer = (obj: any, depth = 0): any | null => {
+    if (!obj || typeof obj !== 'object' || depth > 8) return null;
+    if (Array.isArray(obj.edges) && obj.edges[0]?.node?.id) return obj;
+    for (const key of Object.keys(obj)) {
+      const found = findPostContainer(obj[key], depth + 1);
+      if (found) return found;
+    }
+    return null;
+  };
+  const container = findPostContainer(json?.data);
+  const edges: any[] = container?.edges ?? [];
+  const posts: MemberPost[] = edges
+    .map((edge): MemberPost | null => {
+      const node = edge?.node;
+      const storyContent = node?.comet_sections?.content?.story;
+      if (!storyContent) return null;
+      const id = node?.post_id;
+      const storyId = node?.id;
+      if (!id || !storyId) return null;
+      const title = storyContent?.message?.text || node?.message?.text || '';
+      let thumbnail: string | undefined;
+      const attachments: any[] = storyContent?.attachments || node?.attachments || [];
+      if (attachments.length) {
+        const media = attachments[0]?.styles?.attachment?.media;
+        if (media?.photo_image?.uri) {
+          thumbnail = media.photo_image.uri;
+        } else {
+          const sub = attachments[0]?.styles?.attachment?.all_subattachments?.nodes?.[0]?.media;
+          thumbnail = sub?.image?.uri || sub?.photo_image?.uri;
+        }
+      }
+      return { id, storyId, title, thumbnail };
+    })
+    .filter((p): p is MemberPost => !!p);
+  const nextCursor: string | null = edges.length > 0 ? (container?.page_info?.end_cursor ?? null) : null;
+  return { posts, nextCursor };
+}
+
+/** Xoá 1 bài viết của thành viên trong nhóm — dùng storyId (base64 node.id từ getMemberPosts), không phải post_id số. */
+export async function deleteMemberPost(dtsg: string, fbId: string, groupId: string, storyId: string): Promise<void> {
+  const form = new FormData();
+  form.append('__user', fbId);
+  form.append('av', fbId);
+  form.append('fb_dtsg', dtsg);
+  form.append('variables', JSON.stringify({
+    input: { admin_notes: '', group_id: groupId, selected_rules: [], send_warning: false, share_feedback: false, source: 'group_mall', story_id: storyId, actor_id: fbId, client_mutation_id: '1' },
+    profileID: fbId,
+  }));
+  form.append('doc_id', '6790245574365368');
+  await graphql(form);
+}
+
+/** Tra cứu 1 thành viên trong nhóm theo ID (ô "Tìm theo tên hoặc ID" khi gõ toàn số). */
+export async function searchMemberById(dtsg: string, fbId: string, groupId: string, memberId: string): Promise<AdminMember | null> {
+  const form = new FormData();
+  form.append('av', fbId);
+  form.append('__user', fbId);
+  form.append('fb_dtsg', dtsg);
+  form.append('__comet_req', '15');
+  form.append('fb_api_req_friendly_name', 'GroupsCometPeopleListQuery');
+  form.append('variables', JSON.stringify({ actionBarRenderLocation: 'WWW_COMET_HOVERCARD', context: 'DEFAULT', entityID: memberId, groupID: groupId, includeTdaInfo: false, scale: 1.5 }));
+  form.append('doc_id', '7117112441704627');
+  const json = await graphql(form);
+  const node = json?.data?.node;
+  const actor = node?.comet_hovercard_renderer?.actor ?? node?.comet_hovercard_renderer?.user ?? (node?.__typename === 'User' ? node : undefined);
+  return actor?.id && actor?.name ? { id: actor.id, name: actor.name, avatar: actor.profile_picture?.uri } : null;
+}

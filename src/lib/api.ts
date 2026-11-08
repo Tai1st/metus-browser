@@ -140,6 +140,9 @@ export const Api = {
     ),
   /** Mua gói theo id (POST /plan). */
   buyPlan: (id: string) => call<{ data: BuyPlanResult }>('POST', '/plan', { id }).then((r) => r.data),
+
+  /** Ghi log/trừ phí khi xuất logo (POST /customer/logo, giống metus-few — không ảnh hưởng file xuất ra). */
+  createLogo: (body: { title: string; subTitle: string; logoType: string }) => call<unknown>('POST', '/customer/logo', body),
 };
 
 export function describeError(e: unknown): string {

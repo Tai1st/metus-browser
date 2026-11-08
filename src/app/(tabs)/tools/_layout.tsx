@@ -36,14 +36,25 @@ export default function ToolsStackLayout() {
       <Stack.Screen name="auto-join-fb-group" options={{ title: t('stack.autoJoin') }} />
       <Stack.Screen name="auto-post-fb-group" options={{ title: t('stack.autoPost') }} />
       <Stack.Screen name="group-extractor-by-uid" options={{ title: t('stack.groupExtractor') }} />
+      <Stack.Screen name="group-search-by-keyword" options={{ title: t('stack.groupSearchByKeyword') }} />
+      <Stack.Screen name="post-extractor-by-uid" options={{ title: t('stack.postExtractorByUid') }} />
+      <Stack.Screen name="logo" options={{ title: t('stack.logo') }} />
+      <Stack.Screen name="friends" options={{ title: t('stack.friends') }} />
+      <Stack.Screen name="create-bm-pages" options={{ title: t('stack.createBmPages') }} />
+      <Stack.Screen name="admin-groups-manager" options={{ title: t('stack.adminGroupsManager') }} />
+      <Stack.Screen name="fb-share-to-pages" options={{ title: t('stack.fbShareToPages') }} />
+      <Stack.Screen name="page-posts-hide" options={{ title: t('stack.pagePostsHide') }} />
+      <Stack.Screen name="page-posts-remover" options={{ title: t('stack.pagePostsRemover') }} />
       <Stack.Screen name="fb-video-carousel" options={{ title: t('stack.videoCarousel') }} />
       <Stack.Screen name="fb-one-card-video-carousel" options={{ title: t('stack.oneCardVideo') }} />
       <Stack.Screen name="fb-one-card-picture-carousel" options={{ title: t('stack.oneCardPicture') }} />
       <Stack.Screen name="post-a-card" options={{ title: t('stack.fakeAlbum') }} />
       <Stack.Screen name="auto-comment-fb-group" options={{ title: t('stack.autoComment') }} />
       <Stack.Screen name="auto-leave-group" options={{ title: t('stack.autoLeaveGroup') }} />
+      <Stack.Screen name="page-comments-bot" options={{ title: t('stack.pageCommentsBot') }} />
       <Stack.Screen name="up-to-reels" options={{ title: t('stack.reels') }} />
       <Stack.Screen name="page-pics-posts" options={{ title: t('stack.pagePicsPosts') }} />
+      <Stack.Screen name="page-multi-photo-post" options={{ title: t('stack.pageMultiPhotoPost') }} />
       <Stack.Screen name="up-to-stories" options={{ title: t('stack.stories') }} />
       <Stack.Screen name="swipe-up-video" options={{ title: t('stack.swipeUp') }} />
       <Stack.Screen name="page-post-analysis" options={{ title: t('stack.pagePostAnalyze') }} />

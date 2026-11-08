@@ -28,13 +28,13 @@ export const TOOLS: ToolItem[] = [
   { key: 'auto-join', titleKey: 'tool.autoJoin.title', descKey: 'tool.autoJoin.desc', category: 'Tự động hóa', icon: 'people', route: '/tools/auto-join-fb-group', free: true },
   { key: 'auto-post', titleKey: 'tool.autoPost.title', descKey: 'tool.autoPost.desc', category: 'Tự động hóa', icon: 'create', route: '/tools/auto-post-fb-group', free: true },
   { key: 'auto-comment', titleKey: 'tool.autoComment.title', descKey: 'tool.autoComment.desc', category: 'Tự động hóa', icon: 'chatbubble-ellipses', route: '/tools/auto-comment-fb-group', free: true },
-  { key: 'page-comments-bot', titleKey: 'tool.pageCommentsBot.title', descKey: 'tool.pageCommentsBot.desc', category: 'Tự động hóa', icon: 'chatbubbles' },
+  { key: 'page-comments-bot', titleKey: 'tool.pageCommentsBot.title', descKey: 'tool.pageCommentsBot.desc', category: 'Tự động hóa', icon: 'chatbubbles', route: '/tools/page-comments-bot' },
   { key: 'auto-leave-group', titleKey: 'tool.autoLeaveGroup.title', descKey: 'tool.autoLeaveGroup.desc', category: 'Tự động hóa', icon: 'exit', route: '/tools/auto-leave-group', free: true },
   { key: 'up-to-reels', titleKey: 'tool.upToReelsv2.title', descKey: 'tool.upToReelsv2.desc', category: 'Tự động hóa', icon: 'film', route: '/tools/up-to-reels' },
   { key: 'up-to-stories', titleKey: 'tool.upToStories.title', descKey: 'tool.upToStories.desc', category: 'Tự động hóa', icon: 'albums', route: '/tools/up-to-stories' },
   { key: 'page-posts-clone', titleKey: 'tool.pagePostsClone.title', descKey: 'tool.pagePostsClone.desc', category: 'Tự động hóa', icon: 'copy', route: '/tools/page-posts-clone' as Href },
   { key: 'fb-carousel-deep-clone', titleKey: 'tool.fbCarouselDeepClone.title', descKey: 'tool.fbCarouselDeepClone.desc', category: 'Tự động hóa', icon: 'copy', route: '/tools/fb-carousel-deep-clone' as Href },
-  { key: 'logo', titleKey: 'tool.logo.title', descKey: 'tool.logo.desc', category: 'Tự động hóa', icon: 'color-palette' },
+  { key: 'logo', titleKey: 'tool.logo.title', descKey: 'tool.logo.desc', category: 'Tự động hóa', icon: 'color-palette', route: '/tools/logo' },
 
   // ----- Tạo nội dung -----
   { key: 'fb-video-carousel', titleKey: 'tool.fbVideoCarousel.title', descKey: 'tool.fbVideoCarousel.desc', category: 'Tạo nội dung', icon: 'videocam', route: '/tools/fb-video-carousel', free: true },
@@ -43,25 +43,25 @@ export const TOOLS: ToolItem[] = [
   { key: 'post-a-card', titleKey: 'tool.postACard.title', descKey: 'tool.postACard.desc', category: 'Tạo nội dung', icon: 'card', route: '/tools/post-a-card' },
   { key: 'swipe-up-video', titleKey: 'tool.swipeUpVideo.title', descKey: 'tool.swipeUpVideo.desc', category: 'Tạo nội dung', icon: 'arrow-up-circle', route: '/tools/swipe-up-video' },
   { key: 'page-pics-posts', titleKey: 'tool.pagePicsPosts.title', descKey: 'tool.pagePicsPosts.desc', category: 'Tạo nội dung', icon: 'images', route: '/tools/page-pics-posts' },
-  { key: 'page-multi-photo-post', titleKey: 'tool.pageMultiPhotoPost.title', descKey: 'tool.pageMultiPhotoPost.desc', category: 'Tạo nội dung', icon: 'images' },
+  { key: 'page-multi-photo-post', titleKey: 'tool.pageMultiPhotoPost.title', descKey: 'tool.pageMultiPhotoPost.desc', category: 'Tạo nội dung', icon: 'images', route: '/tools/page-multi-photo-post' },
   { key: 'profile-post', titleKey: 'tool.profilePost.title', descKey: 'tool.profilePost.desc', category: 'Tạo nội dung', icon: 'person-circle', route: '/tools/profile-post' as Href },
-  { key: 'create-bm-pages', titleKey: 'tool.createBmPages.title', descKey: 'tool.createBmPages.desc', category: 'Tạo nội dung', icon: 'duplicate' },
+  { key: 'create-bm-pages', titleKey: 'tool.createBmPages.title', descKey: 'tool.createBmPages.desc', category: 'Tạo nội dung', icon: 'duplicate', route: '/tools/create-bm-pages' },
 
   // ----- Phân tích -----
   { key: 'group-extractor', titleKey: 'tool.groupExtractor.title', descKey: 'tool.groupExtractor.desc', category: 'Phân tích', icon: 'download', route: '/tools/group-extractor-by-uid' },
-  { key: 'group-search-by-keyword', titleKey: 'tool.groupSearchByKeyword.title', descKey: 'tool.groupSearchByKeyword.desc', category: 'Phân tích', icon: 'search' },
-  { key: 'post-extractor-by-uid', titleKey: 'tool.postExtractorByUid.title', descKey: 'tool.postExtractorByUid.desc', category: 'Phân tích', icon: 'document-text' },
+  { key: 'group-search-by-keyword', titleKey: 'tool.groupSearchByKeyword.title', descKey: 'tool.groupSearchByKeyword.desc', category: 'Phân tích', icon: 'search', route: '/tools/group-search-by-keyword' },
+  { key: 'post-extractor-by-uid', titleKey: 'tool.postExtractorByUid.title', descKey: 'tool.postExtractorByUid.desc', category: 'Phân tích', icon: 'document-text', route: '/tools/post-extractor-by-uid' },
   // route "as Href": file vừa thêm, types chưa kịp tái sinh (expo-router typegen theo Metro watcher).
   { key: 'group-posts-analyze', titleKey: 'tool.groupPostsAnalyze.title', descKey: 'tool.groupPostsAnalyze.desc', category: 'Phân tích', icon: 'bar-chart', route: '/tools/group-post-analysis' as Href },
   // route "as Href": file vừa thêm, types chưa kịp tái sinh (expo-router typegen theo Metro watcher).
   { key: 'page-posts-analyze', titleKey: 'tool.pagePostsAnalyze.title', descKey: 'tool.pagePostsAnalyze.desc', category: 'Phân tích', icon: 'stats-chart', route: '/tools/page-post-analysis' as Href },
-  { key: 'friends', titleKey: 'tool.friends.title', descKey: 'tool.friends.desc', category: 'Phân tích', icon: 'people-circle' },
+  { key: 'friends', titleKey: 'tool.friends.title', descKey: 'tool.friends.desc', category: 'Phân tích', icon: 'people-circle', route: '/tools/friends' },
 
   // ----- Quản lý -----
-  { key: 'admin-groups-manager', titleKey: 'tool.adminGroupsManager.title', descKey: 'tool.adminGroupsManager.desc', category: 'Quản lý', icon: 'shield-checkmark' },
-  { key: 'fb-share-to-pages', titleKey: 'tool.fbShareToPages.title', descKey: 'tool.fbShareToPages.desc', category: 'Quản lý', icon: 'share-social' },
-  { key: 'page-posts-hide', titleKey: 'tool.pagePostsHide.title', descKey: 'tool.pagePostsHide.desc', category: 'Quản lý', icon: 'eye-off' },
-  { key: 'page-posts-remover', titleKey: 'tool.pagePostsRemover.title', descKey: 'tool.pagePostsRemover.desc', category: 'Quản lý', icon: 'trash' },
+  { key: 'admin-groups-manager', titleKey: 'tool.adminGroupsManager.title', descKey: 'tool.adminGroupsManager.desc', category: 'Quản lý', icon: 'shield-checkmark', route: '/tools/admin-groups-manager' },
+  { key: 'fb-share-to-pages', titleKey: 'tool.fbShareToPages.title', descKey: 'tool.fbShareToPages.desc', category: 'Quản lý', icon: 'share-social', route: '/tools/fb-share-to-pages' },
+  { key: 'page-posts-hide', titleKey: 'tool.pagePostsHide.title', descKey: 'tool.pagePostsHide.desc', category: 'Quản lý', icon: 'eye-off', route: '/tools/page-posts-hide' },
+  { key: 'page-posts-remover', titleKey: 'tool.pagePostsRemover.title', descKey: 'tool.pagePostsRemover.desc', category: 'Quản lý', icon: 'trash', route: '/tools/page-posts-remover' },
   { key: 'group-posts-remover', titleKey: 'tool.groupPostsRemover.title', descKey: 'tool.groupPostsRemover.desc', category: 'Quản lý', icon: 'trash', route: '/tools/group-posts-remover' as Href },
   // route "as Href": file vừa thêm, types chưa kịp tái sinh (expo-router typegen theo Metro watcher).
   { key: 'group-pending-post-remover', titleKey: 'tool.groupPendingPostRemover.title', descKey: 'tool.groupPendingPostRemover.desc', category: 'Quản lý', icon: 'trash-bin', route: '/tools/group-pending-post-remover' as Href },

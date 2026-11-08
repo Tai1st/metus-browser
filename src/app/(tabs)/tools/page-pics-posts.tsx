@@ -269,6 +269,28 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
             onPick={pickBg} onMore={() => setBgOpen(true)} disabled={busy} placeholder={t('picsPost.contentPh')} />
         </View>
 
+        {/* Tải ảnh lên */}
+        <Pressable onPress={pickPhotos} disabled={busy}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: radius.md, backgroundColor: busy ? c.faint : c.accent }}>
+          {uploading ? <ActivityIndicator color={c.onAccent} /> : <Ionicons name="cloud-upload-outline" size={18} color={c.onAccent} />}
+          <Text style={{ color: c.onAccent, fontWeight: '800' }}>{uploading ? t('picsPost.uploading') : t('picsPost.upload')}</Text>
+        </Pressable>
+
+        {quota.length ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {quota.map(({ page, published }) => {
+              const remaining = Math.max(0, limit - published);
+              return (
+                <View key={page.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: c.card }}>
+                  {page.picture ? <Image source={{ uri: page.picture }} style={{ width: 16, height: 16, borderRadius: 8 }} /> : null}
+                  <Text numberOfLines={1} style={{ maxWidth: 100, fontSize: 11.5, fontWeight: '600', color: c.text }}>{page.name}</Text>
+                  <Text style={{ fontSize: 11.5, fontWeight: '800', color: remaining ? c.success : c.danger }}>{t('picsPost.remaining', { n: remaining, limit })}</Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
         {/* Hẹn giờ hàng loạt */}
         <BulkScheduleSection s={sched} disabled={busy} total={scheduledCount} totalLabel={t('picsPost.totalPics')} />
 
@@ -277,7 +299,7 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
         <TickBox label={t('picsPost.autoLike')} value={isLikeEnabled} disabled={busy} onBlocked={() => {}} onChange={setIsLikeEnabled} />
 
         {/* Bình luận sau khi đăng */}
-        <View style={{ borderTopWidth: 1, borderColor: c.border, paddingTop: 10, gap: 8 }}>
+        <View style={{ gap: 8 }}>
           <TickBox label={t('picsPost.commentAfter')} value={commentOn} disabled={busy} onBlocked={() => {}} onChange={setCommentOn} />
           {commentOn ? (
             <>
@@ -310,30 +332,6 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
           {running ? <ActivityIndicator color={c.onAccent} /> : null}
           <Text style={{ color: c.onAccent, fontWeight: '800', fontSize: 15 }}>{running ? t('picsPost.running') : t('picsPost.runBulk')}</Text>
         </Pressable>
-      </Card>
-
-      {/* ========== Tải ảnh ========== */}
-      <Card>
-        <Pressable onPress={pickPhotos} disabled={busy}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: radius.md, backgroundColor: busy ? c.faint : c.accent }}>
-          {uploading ? <ActivityIndicator color={c.onAccent} /> : <Ionicons name="cloud-upload-outline" size={18} color={c.onAccent} />}
-          <Text style={{ color: c.onAccent, fontWeight: '800' }}>{uploading ? t('picsPost.uploading') : t('picsPost.upload')}</Text>
-        </Pressable>
-
-        {quota.length ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {quota.map(({ page, published }) => {
-              const remaining = Math.max(0, limit - published);
-              return (
-                <View key={page.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: c.card }}>
-                  {page.picture ? <Image source={{ uri: page.picture }} style={{ width: 16, height: 16, borderRadius: 8 }} /> : null}
-                  <Text numberOfLines={1} style={{ maxWidth: 100, fontSize: 11.5, fontWeight: '600', color: c.text }}>{page.name}</Text>
-                  <Text style={{ fontSize: 11.5, fontWeight: '800', color: remaining ? c.success : c.danger }}>{t('picsPost.remaining', { n: remaining, limit })}</Text>
-                </View>
-              );
-            })}
-          </View>
-        ) : null}
       </Card>
 
       {/* ========== Danh sách ảnh ========== */}

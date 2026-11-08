@@ -23,6 +23,15 @@ export enum StorageKey {
   AUTO_POST_GROUP = 'autoPostGroup',
   /** Tool bình luận nhóm: form, nhóm đã chọn, kịch bản, bộ lọc. */
   AUTO_COMMENT_GROUP = 'autoCommentGroup',
+  /** Bot trả lời bình luận Page: Page đã chọn, cài đặt, mốc thời gian đã quét. */
+  PAGE_COMMENTS_BOT = 'pageCommentsBot',
+  /** Quản lý bạn bè: cache danh sách bạn bè + mốc lần quét gần nhất. */
+  FB_FRIENDS = 'fbFriends',
+  FB_FRIENDS_LAST_FETCH = 'fbFriendsLastFetch',
+  /** Danh sách bạn đã huỷ kết bạn (phát hiện qua so sánh lần quét trước/sau). */
+  FB_REMOVED_FRIENDS = 'fbRemovedFriends',
+  /** Tool tạo hàng loạt Fanpage: cài đặt đã lưu (limit/delay/tên/bio/emoji). */
+  CREATE_BM_PAGES = 'createBmPages',
 }
 
 const PREFIX = 'metus:';

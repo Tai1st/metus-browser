@@ -30,7 +30,10 @@ export async function uploadPagePhoto(dtsg: string, fbId: string, pageId: string
   const { data } = await instance.post<string>(
     `https://upload-business.facebook.com/ajax/react_composer/attachments/photo/upload?av=${pageId}&__user=${fbId}&__a=1&fb_dtsg=${dtsg}&metuscors=0`,
     form,
-    { iUser: pageId, responseType: 'text', transformResponse: (r) => r },
+    {
+      iUser: pageId, responseType: 'text', transformResponse: (r) => r,
+      headers: { origin: 'https://business.facebook.com', referer: 'https://business.facebook.com/' },
+    },
   );
   const json = parseFbJson(data);
   const photoId = json?.payload?.photoID;
@@ -139,8 +142,17 @@ export async function publishPagePhotoPost(p: PublishPagePhotoParams): Promise<s
     iUser: p.pageId,
     responseType: 'text',
     transformResponse: (r) => r,
+    headers: { origin: 'https://business.facebook.com', referer: `https://business.facebook.com/latest/home?asset_id=${p.pageId}` },
   });
   const json = parseFbJson(data);
   if (json?.errors?.length && !json?.data) throw new Error(json.errors[0]?.message ?? 'Đăng bài thất bại');
-  return json?.data?.xfamily_content_create?.items?.[0]?.story?.post_id;
+  const postId: string | undefined = json?.data?.xfamily_content_create?.items?.[0]?.story?.post_id;
+  // Facebook có thể trả "data" hợp lệ kèm "errors" một phần (vd thiếu quyền, nội dung bị chặn...) —
+  // nếu không có post_id thật và không phải do đăng nháp/hẹn giờ (2 trường hợp không có post_id ngay),
+  // coi là thất bại thay vì báo thành công nhầm.
+  if (!postId && !p.isDraft && !p.scheduledUnix) {
+    const reason = json?.errors?.[0]?.message ?? JSON.stringify(json?.data ?? json).slice(0, 300);
+    throw new Error(`Facebook không trả post_id: ${reason}`);
+  }
+  return postId;
 }
