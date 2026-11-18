@@ -323,7 +323,7 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
         patchPost(key, { commentStatus: 'pending' });
         try {
           await sleep(1500);
-          const commentUrl = await createComment({ dtsg, fbId, postId, text: spinContent(d.autoComment ?? ''), pageId: form.pageId, photo: d.commentPhoto });
+          const commentUrl = await createComment({ dtsg, fbId, postId, text: spinContent(d.autoComment ?? ''), pageId: form.pageId, photo: d.commentPhoto, groupId });
           patchPost(key, { commentStatus: 'success', commentUrl });
         } catch {
           patchPost(key, { commentStatus: 'failed' });

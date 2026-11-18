@@ -397,8 +397,10 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
       // {STT} / {STT[n]} → số thứ tự bình luận
       text = text.replace(/\{STT(?:\[(\d+)\])?\}/, (_m, base?: string) => String((base ? +base : 1) + counterRef.current));
       text = spinContent(text);
-      const numericId = item.postId.split('_')[1] || item.postId.split('_')[0];
-      const res = await postComment({ dtsg, fbId, postId: numericId, text, photo, ranges: range ? [range] : [] });
+      const postIdParts = item.postId.split('_');
+      const numericId = postIdParts[1] || postIdParts[0];
+      const groupId = postIdParts.length > 1 ? postIdParts[0] : undefined;
+      const res = await postComment({ dtsg, fbId, postId: numericId, text, photo, ranges: range ? [range] : [], groupId });
       if (form.isChecked && res.legacyToken) {
         await editComment({ dtsg, fbId, legacyToken: res.legacyToken, text, attachments: res.attachments, ranges: range ? [range] : [] });
       }

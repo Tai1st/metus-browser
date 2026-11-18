@@ -496,34 +496,88 @@ export interface CommentRange {
 }
 
 /** Bình luận đầy đủ (tag, ảnh) → url + legacy_token (để sửa bình luận). */
+/**
+ * Resolve post ID số sang feedback_id đúng dạng base64("feedback:" + pfbid)
+ * mà useCometUFICreateCommentMutation yêu cầu — port từ metus-few
+ * Comment.resolveFeedbackId, ĐÃ TEST THẬT trên session sống (2026-11).
+ * Cách cũ (feedback_id = btoa("feedback:" + numericPostId)) không còn đúng
+ * schema Facebook, bị từ chối với lỗi field_exception.
+ */
+export async function resolveFeedbackId(actorId: string, numericPostId: string, dtsg: string): Promise<string> {
+  const storyID = btoa(`S:_I${actorId}:VK:${numericPostId}`);
+  const form = new FormData();
+  form.append('fb_dtsg', dtsg);
+  form.append('__user', actorId);
+  form.append('__a', '1');
+  form.append('fb_api_req_friendly_name', 'CometSinglePostDialogContentQuery');
+  form.append(
+    'variables',
+    JSON.stringify({
+      feedbackSource: 2, feedLocation: 'POST_PERMALINK_DIALOG', focusCommentID: null,
+      privacySelectorRenderLocation: 'COMET_STREAM', renderLocation: 'permalink', scale: 2,
+      shouldChangeNodeFieldName: true, storyID, useDefaultActor: false,
+    }),
+  );
+  form.append('doc_id', '26431498666488990');
+  const json = await graphql(form);
+
+  // Tìm field "feedback_id"/"id" dạng base64("feedback:pfbid...") đầu tiên
+  // trong response - cấu trúc GraphQL nằm sâu và có thể đổi theo phiên bản.
+  let found: string | undefined;
+  const seen = new Set<unknown>();
+  const walk = (obj: unknown): void => {
+    if (found || !obj || typeof obj !== 'object' || seen.has(obj)) return;
+    seen.add(obj);
+    for (const value of Object.values(obj as Record<string, unknown>)) {
+      if (found) return;
+      if (typeof value === 'string' && /^[A-Za-z0-9+/=]{10,}$/.test(value)) {
+        try {
+          const decoded = atob(value);
+          if (decoded.startsWith('feedback:pfbid')) {
+            found = decoded;
+            return;
+          }
+        } catch {
+          // không phải base64 hợp lệ, bỏ qua
+        }
+      } else if (value && typeof value === 'object') {
+        walk(value);
+      }
+    }
+  };
+  walk(json);
+
+  if (!found) throw new Error('Không resolve được feedback_id (pfbid) cho bài: ' + numericPostId);
+  return btoa(found);
+}
+
 export async function postComment(p: {
-  dtsg: string; fbId: string; postId: string; text: string; pageId?: string; photo?: LocalFile | null; ranges?: CommentRange[];
+  dtsg: string; fbId: string; postId: string; text: string; pageId?: string; photo?: LocalFile | null; ranges?: CommentRange[]; groupId?: string;
 }): Promise<{ url: string | null; legacyToken: string | null; attachments: unknown }> {
   const actor = p.pageId || p.fbId;
   const attachments = p.photo ? [{ media: { id: await uploadGroupImage({ dtsg: p.dtsg, fbId: p.fbId, file: p.photo, pageId: p.pageId }) } }] : null;
+  const feedbackId = await resolveFeedbackId(actor, p.postId, p.dtsg);
   const form = new FormData();
   form.append('fb_dtsg', p.dtsg);
   form.append('av', actor);
   form.append(
     'variables',
     JSON.stringify({
-      displayCommentsFeedbackContext: null, displayCommentsContextEnableComment: null, displayCommentsContextIsAdPreview: null,
-      displayCommentsContextIsAggregatedShare: null, displayCommentsContextIsStorySet: null, feedLocation: 'GROUP', feedbackSource: 0,
-      focusCommentID: null, groupID: null, includeNestedComments: false,
+      feedLocation: 'GROUP', feedbackSource: 2, groupID: p.groupId || null,
       input: {
-        attachments, feedback_id: btoa(`feedback:${p.postId}`), formatting_style: null, message: { ranges: p.ranges ?? [], text: p.text },
-        reply_target_clicked: false, feedback_source: 'PROFILE', actor_id: actor, client_mutation_id: '18',
+        actor_id: actor, attachments: attachments ?? null, feedback_id: feedbackId, formatting_style: null,
+        message: { ranges: p.ranges ?? [], text: p.text }, vod_video_timestamp: null, is_tracking_encrypted: true,
+        feedback_source: 'OBJECT',
       },
-      inviteShortLinkKey: null, renderLocation: null, scale: 1, useDefaultActor: false,
-      UFI2CommentsProvider_commentsKey: 'CometGroupDiscussionRootSuccessQuery',
-      __relay_internal__pv__GroupsCometDelayCheckBlockedUsersrelayprovider: false,
+      inviteShortLinkKey: null, renderLocation: null, scale: 2, useDefaultActor: false, focusCommentID: null,
+      __relay_internal__pv__IsWorkUserrelayprovider: false,
     }),
   );
-  form.append('doc_id', '3988300734617853');
+  form.append('doc_id', '9117686168269068');
   const json = await graphql(form, p.pageId);
   const node = json?.data?.comment_create?.feedback_comment_edge?.node;
   if (!node) throw new Error(json?.errors?.[0]?.message ?? tr('gp.err.comment'));
-  return { url: node.url ?? null, legacyToken: node.legacy_token ?? null, attachments };
+  return { url: node.feedback?.url ?? null, legacyToken: node.legacy_token ?? null, attachments };
 }
 
 /** Sửa bình luận (Comment.edit của metus-few) — dùng cho "Lách bộ lọc của admin". */
@@ -557,31 +611,33 @@ export async function getGroupPostIds(groupId: string, token: string, limit: num
   return ((json?.data ?? []) as { id: string }[]).map((x) => String(x.id));
 }
 
-export async function createComment(p: { dtsg: string; fbId: string; postId: string; text: string; pageId?: string; photo?: LocalFile | null }): Promise<string | null> {
+export async function createComment(p: { dtsg: string; fbId: string; postId: string; text: string; pageId?: string; photo?: LocalFile | null; groupId?: string }): Promise<string | null> {
   const actor = p.pageId || p.fbId;
   // Ảnh bình luận: upload như ảnh bài viết rồi gắn media id (Comment.uploadPhoto của metus-few)
   const attachments = p.photo ? [{ media: { id: await uploadGroupImage({ dtsg: p.dtsg, fbId: p.fbId, file: p.photo, pageId: p.pageId }) } }] : null;
+  const feedbackId = await resolveFeedbackId(actor, p.postId, p.dtsg);
   const form = new FormData();
   form.append('fb_dtsg', p.dtsg);
   form.append('av', actor);
   form.append(
     'variables',
     JSON.stringify({
-      displayCommentsFeedbackContext: null, displayCommentsContextEnableComment: null, displayCommentsContextIsAdPreview: null,
-      displayCommentsContextIsAggregatedShare: null, displayCommentsContextIsStorySet: null, feedLocation: 'GROUP', feedbackSource: 0,
-      focusCommentID: null, groupID: null, includeNestedComments: false,
+      feedLocation: 'GROUP', feedbackSource: 2, groupID: p.groupId || null,
       input: {
-        attachments, feedback_id: btoa(`feedback:${p.postId}`), formatting_style: null, message: { ranges: [], text: p.text },
-        reply_target_clicked: false, feedback_source: 'PROFILE', actor_id: actor, client_mutation_id: '18',
+        actor_id: actor, attachments: attachments ?? null, feedback_id: feedbackId, formatting_style: null,
+        message: { ranges: [], text: p.text }, vod_video_timestamp: null, is_tracking_encrypted: true,
+        feedback_source: 'OBJECT',
       },
-      inviteShortLinkKey: null, renderLocation: null, scale: 1, useDefaultActor: false,
-      UFI2CommentsProvider_commentsKey: 'CometGroupDiscussionRootSuccessQuery',
-      __relay_internal__pv__GroupsCometDelayCheckBlockedUsersrelayprovider: false,
+      inviteShortLinkKey: null, renderLocation: null, scale: 2, useDefaultActor: false, focusCommentID: null,
+      __relay_internal__pv__IsWorkUserrelayprovider: false,
     }),
   );
-  form.append('doc_id', '3988300734617853');
+  form.append('doc_id', '9117686168269068');
   const json = await graphql(form, p.pageId);
-  return json?.data?.comment_create?.feedback_comment_edge?.node?.url ?? null;
+  if (!json?.data?.comment_create) {
+    throw new Error(json?.errors?.[0]?.message ?? tr('gp.err.comment'));
+  }
+  return json.data.comment_create.feedback_comment_edge?.node?.feedback?.url ?? null;
 }
 
 // ───────────────────────── Bài viết chờ duyệt (admin/mod) ─────────────────────────
