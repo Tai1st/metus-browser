@@ -119,11 +119,15 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
         });
         setResults((prev) => prev.map((r) => (r.pageId === page.id ? { ...r, status: 'success', postId } : r)));
         if (postId && !saveAsDraft && !scheduledUnix) {
+          // Graph API (comments/likes) không nhận post_id trần - Facebook hiểu
+          // nhầm thành đối tượng "status" cũ (lỗi #12 singular statuses API
+          // deprecated). Phải ghép thành dạng chuẩn "pageId_postId".
+          const fullPostId = postId.includes('_') ? postId : `${page.id}_${postId}`;
           if (commentOn && (commentText.trim() || commentPhoto)) {
-            await commentWithToken(postId, page.access_token, commentText, commentPhoto).catch(() => {});
+            await commentWithToken(fullPostId, page.access_token, commentText, commentPhoto).catch(() => {});
           }
           if (isLikeEnabled) {
-            await likePost(postId, page.access_token).catch(() => {});
+            await likePost(fullPostId, page.access_token).catch(() => {});
           }
         }
         ok++;

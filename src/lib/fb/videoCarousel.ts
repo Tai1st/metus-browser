@@ -305,7 +305,10 @@ export async function createCarouselPost(p: CreateCarouselParams): Promise<strin
   const object_story_spec = buildObjectStorySpec(p);
 
   p.onProgress?.(0.1);
-  const created = await exFetch<{ id: string }>(
+  const created = await exFetch<{
+    id?: string;
+    error?: { message?: string; error_user_msg?: string };
+  }>(
     `${GRAPH}/v21.0/${p.adAccountId}/adcreatives?metuscors=0`,
     {
       method: 'POST',
@@ -314,6 +317,9 @@ export async function createCarouselPost(p: CreateCarouselParams): Promise<strin
       headers: { 'Content-Type': 'application/json' },
     },
   );
+  if (!created.id) {
+    throw new Error(created.error?.error_user_msg || created.error?.message || 'Tạo ad creative thất bại, không nhận được id');
+  }
 
   let effectiveId = '';
   for (let i = 0; i < 25; i++) {

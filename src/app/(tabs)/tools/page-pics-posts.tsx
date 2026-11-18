@@ -213,13 +213,17 @@ function Runner({ dtsg, fbId, user }: { dtsg: string; fbId: string; user: MetusU
         const status: PicStatus = saveAsDraft ? 'unpublished' : scheduledUnix ? 'scheduled' : 'published';
         patch(p.key, { status, error: saveAsDraft ? t('picsPost.savedDraft') : undefined });
         if (status === 'published' && postId) {
+          // Graph API (comments/likes) không nhận post_id trần - Facebook hiểu
+          // nhầm thành đối tượng "status" cũ (lỗi #12 singular statuses API
+          // deprecated). Phải ghép thành dạng chuẩn "pageId_postId".
+          const fullPostId = postId.includes('_') ? postId : `${p.page.id}_${postId}`;
           if (commentOn && (commentText.trim() || commentPhoto)) {
-            await commentWithToken(postId, p.page.access_token, commentText, commentPhoto).catch((e) =>
+            await commentWithToken(fullPostId, p.page.access_token, commentText, commentPhoto).catch((e) =>
               patch(p.key, { error: `${t('picsPost.commentErr')}: ${describeError(e)}` }),
             );
           }
           if (isLikeEnabled) {
-            await likePost(postId, p.page.access_token).catch((e) => patch(p.key, { error: `${t('picsPost.likeErr')}: ${describeError(e)}` }));
+            await likePost(fullPostId, p.page.access_token).catch((e) => patch(p.key, { error: `${t('picsPost.likeErr')}: ${describeError(e)}` }));
           }
         }
         perPage.set(p.page.id, count + 1);
