@@ -16,6 +16,19 @@ import { Metus, type MetusHttpResponse } from '@metus/http';
 export const BROWSER_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36';
 
+/**
+ * jazoest thật của Facebook = '2' + tổng charCode(fb_dtsg) - xác nhận qua
+ * code inject.js của extension fewfeed (hàm calcJ). Trước đây các request
+ * port từ metus-few gửi jazoest/__rev/__spin_r hardcode cứng (snapshot từ
+ * network capture, không khớp session thật) - một tín hiệu khiến tài khoản
+ * dễ bị Facebook coi là bot (xem metus-few/docs/fix-log.md mục 9).
+ */
+export function calcJazoest(dtsg: string): string {
+  let sum = 0;
+  for (let i = 0; i < dtsg.length; i++) sum += dtsg.charCodeAt(i);
+  return '2' + sum;
+}
+
 const DEFAULT_FB_HEADERS: Record<string, string> = {
   'User-Agent': BROWSER_UA,
   Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',

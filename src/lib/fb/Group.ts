@@ -7,7 +7,7 @@
 import { fileBody } from '@metus/http';
 import * as Crypto from 'expo-crypto';
 
-import { exFetch, instance } from './compat';
+import { calcJazoest, exFetch, instance } from './compat';
 import { tr } from '../i18n';
 
 const GRAPHQL = 'https://www.facebook.com/api/graphql?metuscors=0';
@@ -277,7 +277,7 @@ export async function uploadGroupVideo(p: { dtsg: string; fbId: string; file: Lo
     fb_dtsg: p.dtsg, av: target, server_timestamps: 'true', waterfall_id: waterfallId, __comet_req: '11', target_id: target,
     source: 'composer', composer_entry_point_ref: entryPointRef, dpr: '1.5', supports_chunking: 'true', supports_file_api: 'true',
     has_file_been_replaced: 'false', file_size: String(size), file_extension: 'mp4', partition_start_offset: '0',
-    partition_end_offset: String(size), jazoest: '25470', __a: '1', __user: p.fbId,
+    partition_end_offset: String(size), jazoest: calcJazoest(p.dtsg), __a: '1', __user: p.fbId,
   };
   Object.entries(startFields).forEach(([k, v]) => startForm.append(k, v));
   const { data: startData } = await instance.post<string>(`https://business.facebook.com/ajax/video/upload/requests/start/?av=${target}&__a=1`, startForm, {

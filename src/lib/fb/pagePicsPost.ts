@@ -2,7 +2,7 @@
  * Đăng ảnh thường lên Page hàng loạt — port từ metus-few
  * src/services/facebook/UpToPics.ts (upload ảnh + đăng bài ảnh lên Page).
  */
-import { instance } from './compat';
+import { calcJazoest, instance } from './compat';
 import { parseFbJson, type LocalFile } from './Group';
 
 const genId = (len: number) => {
@@ -127,11 +127,7 @@ export async function publishPagePhotoPost(p: PublishPagePhotoParams): Promise<s
   form.append('__a', '1');
   form.append('__comet_req', '0');
   form.append('fb_dtsg', p.dtsg);
-  form.append('__rev', '1038169738');
-  form.append('jazoest', '250707351');
-  form.append('__spin_r', '1038169738');
-  form.append('__spin_b', 'trunk');
-  form.append('__spin_t', String(Math.floor(Date.now() / 1000)));
+  form.append('jazoest', calcJazoest(p.dtsg));
   form.append('fb_api_caller_class', 'RelayModern');
   form.append('fb_api_req_friendly_name', 'BusinessComposerStoryCreationMutation');
   form.append('variables', JSON.stringify(variables));

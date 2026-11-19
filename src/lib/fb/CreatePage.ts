@@ -3,7 +3,7 @@
 // web Facebook — không phải Graph API /me/accounts chính thức, không cần quyền
 // app riêng). Tên random từ 2 danh sách first/last name; bio có thể thêm 3 emoji
 // ngẫu nhiên nếu bật.
-import { instance } from './compat';
+import { calcJazoest, instance } from './compat';
 
 const GRAPHQL = 'https://www.facebook.com/api/graphql?metuscors=0';
 
@@ -93,7 +93,7 @@ async function createFacebookPage(dtsg: string, fbId: string, name: string, bio:
   form.append('server_timestamps', 'true');
   form.append('doc_id', '5903223909690825');
   form.append('variables', JSON.stringify(variables));
-  form.append('jazoest', '25383');
+  form.append('jazoest', calcJazoest(dtsg));
   form.append('__a', '1');
   form.append('__user', fbId);
 
