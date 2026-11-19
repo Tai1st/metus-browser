@@ -43,9 +43,25 @@ const DEFAULT_FB_HEADERS: Record<string, string> = {
   'Upgrade-Insecure-Requests': '1',
 };
 
+/**
+ * Facebook server-side validate Referer/Origin cho Graph API (không phải
+ * CORS của browser - app native không bị CORS chặn, nhưng server vẫn có
+ * thể từ chối thiếu Referer, y hệt lỗi đã gặp ở metus-extension-next với
+ * graph.facebook.com/advideos). Chỉ set cho domain graph.facebook.com,
+ * KHÔNG set toàn cục vì withDefaults() dùng chung cho mọi domain (TikTok,
+ * business.facebook.com...) - set sai Referer cho domain khác có thể gây
+ * lỗi ngược.
+ */
+function domainDefaultHeaders(url: string): Record<string, string> {
+  if (/graph\.facebook\.com/i.test(url)) {
+    return { Origin: 'https://www.facebook.com', Referer: 'https://www.facebook.com' };
+  }
+  return {};
+}
+
 /** Gộp header mặc định, KHÔNG ghi đè header do caller truyền (so sánh không phân biệt hoa thường). */
-function withDefaults(headers?: Record<string, string>): Record<string, string> {
-  const out: Record<string, string> = { ...DEFAULT_FB_HEADERS };
+function withDefaults(headers?: Record<string, string>, url?: string): Record<string, string> {
+  const out: Record<string, string> = { ...DEFAULT_FB_HEADERS, ...(url ? domainDefaultHeaders(url) : {}) };
   const lower = new Set(Object.keys(out).map((k) => k.toLowerCase()));
   for (const [k, v] of Object.entries(headers ?? {})) {
     // bỏ default nếu caller đã có header cùng tên
@@ -83,7 +99,7 @@ export async function exFetch<T = any>(input: string, config?: ExFetchRequest, t
   const res = await Metus.http.request<string>({
     url: input,
     method: config?.method ?? 'GET',
-    headers: withDefaults(config?.headers),
+    headers: withDefaults(config?.headers, input),
     params: config?.params,
     body: config?.body,
     timeout: timeoutMs,
@@ -125,7 +141,7 @@ async function axiosRequest<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATC
     url,
     method,
     body,
-    headers: withDefaults(config.headers),
+    headers: withDefaults(config.headers, url),
     params: config.params,
     timeout: config.timeout ?? 120_000,
     signal: config.signal,
